@@ -244,7 +244,7 @@
         <div id="alert-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
                 <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto text-xl"><i class="fa-solid fa-circle-info"></i></div>
-                <p id="alert-message" class="text-sm font-semibold text-slate-800"></p>
+                <p id="alert-message" class="text-sm font-semibold text-slate-800 break-words"></p>
                 <button onclick="closeModal('alert-modal')" class="w-full py-2.5 bg-slate-900 text-white font-bold rounded-xl">OK</button>
             </div>
         </div>
@@ -446,13 +446,19 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, deleteDoc, getDocs, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Environment bindings
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // Your specific Firebase Keys have been hardcoded here
+        const appId = 'lumina-flash-6298f'; 
+        const firebaseConfig = {
+            apiKey: "AIzaSyDqk1ojTgEnzsGKnNFphi-CbMPIww43Ewo",
+            authDomain: "lumina-flash-6298f.firebaseapp.com",
+            projectId: "lumina-flash-6298f",
+            storageBucket: "lumina-flash-6298f.firebasestorage.app",
+            messagingSenderId: "281445871040",
+            appId: "1:281445871040:web:8fad281101f1833c796c25"
+        };
 
         let app, auth, db, userId;
 
@@ -497,41 +503,28 @@
         };
 
         const initCloud = async () => {
-            if (Object.keys(firebaseConfig).length === 0) {
-                console.warn("No Firebase config. Operating in memory.");
-                initCanvas();
-                renderFoldersView();
-                return;
-            }
-
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-
             try {
-                // Fixed authentication flow: Handle missing/invalid initialToken safely
-                if (initialToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialToken);
-                    } catch (tokenError) {
-                        console.warn("Custom token failed, falling back to anonymous:", tokenError);
-                        await signInAnonymously(auth);
-                    }
-                } else {
+                console.log("Initializing Firebase with custom keys...");
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                console.log("Attempting Anonymous Authentication...");
+                try {
                     await signInAnonymously(auth);
+                } catch (authErr) {
+                    console.error("Auth Failed:", authErr);
+                    throw new Error("Authentication failed: " + authErr.message);
                 }
                 
                 userId = auth.currentUser?.uid;
-                if (!userId) {
-                    console.error("Failed to acquire user ID after authentication.");
-                    document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud-xmark text-rose-500"></i> Disconnected';
-                    return;
-                }
+                if (!userId) throw new Error("No User ID returned from Firebase.");
+                console.log("Authenticated perfectly as:", userId);
 
                 document.getElementById('cloud-status').classList.remove('hidden');
                 document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud text-emerald-500"></i> Connected';
 
-                // Check for legacy local data to migrate
+                // Check for legacy local data to migrate to the new Cloud
                 const localDeckRaw = localStorage.getItem('luminaDeck');
                 if (localDeckRaw && !localStorage.getItem('luminaCloudMigrated')) {
                     triggerSyncAnim();
@@ -554,7 +547,7 @@
                     localStorage.setItem('luminaCloudMigrated', 'true');
                 }
 
-                // Setup Listeners
+                // Setup Listeners with Error Handling
                 onSnapshot(doc(db, 'artifacts', appId, 'users', userId, 'metadata', 'core'), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
@@ -563,14 +556,17 @@
                         setMeta = data.setMeta || {};
                         renderFoldersView();
                     } else {
-                        saveMetadataToCloud(); // Initialize
+                        saveMetadataToCloud(); // Initialize for brand new users
                     }
-                }, (error) => console.error(error));
+                }, (error) => {
+                    console.error("Metadata Sync Error:", error);
+                    document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud-xmark text-amber-500"></i> Sync Error';
+                });
 
                 onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'cards'), (snapshot) => {
                     deck = snapshot.docs.map(doc => doc.data());
                     if (!document.getElementById('view-set-detail').classList.contains('hidden') && selectedSet) {
-                        openSetDetail(selectedSet); // refresh detail view
+                        openSetDetail(selectedSet); 
                     }
                 }, (error) => console.error(error));
 
@@ -579,10 +575,22 @@
                     if (!document.getElementById('view-recycle-bin').classList.contains('hidden')) {
                         renderRecycleBin();
                     }
-                }, (error) => console.error(error));
+                }, (error) => console.error("Trash Sync Error:", error));
 
             } catch (e) {
-                console.error("Auth error:", e);
+                console.error("Firebase Connection Error:", e);
+                document.getElementById('cloud-status').classList.remove('hidden');
+                document.getElementById('cloud-status').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Connection Failed`;
+                
+                // Super detailed error handling so we know exactly what is wrong
+                let errorMsg = e.message || "Unknown error occurred.";
+                if (errorMsg.includes('auth/admin-restricted-operation')) {
+                    errorMsg = "Anonymous authentication is not actually enabled. Please check the Firebase console again.";
+                } else if (errorMsg.includes('Failed to fetch') || errorMsg.includes('network')) {
+                    errorMsg = "Network error. Make sure you are connected to the internet.";
+                }
+                
+                showAlert("Cloud Connection Failed: " + errorMsg);
             }
 
             initCanvas();
