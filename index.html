@@ -61,16 +61,18 @@
         .theme-rose { --theme-bg: #ffe4e6; --theme-text: #e11d48; --theme-border: #fecdd3; --theme-hover: #ffe4e6; --theme-accent: #be123c; }
         .theme-emerald { --theme-bg: #d1fae5; --theme-text: #059669; --theme-border: #a7f3d0; --theme-hover: #d1fae5; --theme-accent: #047857; }
         .theme-amber { --theme-bg: #fef3c7; --theme-text: #d97706; --theme-border: #fde68a; --theme-hover: #fef3c7; --theme-accent: #b45309; }
+
+        /* Tool Active State */
+        .tool-active { background-color: #e0e7ff !important; color: #4f46e5 !important; border-color: #c7d2fe !important; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col overflow-hidden bg-slate-50">
 
-    <!-- AUTH SCREEN -->
     <div id="auth-screen" class="flex-1 flex items-center justify-center p-4 z-50">
         <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 w-full max-w-md space-y-6">
             <div class="text-center">
                 <h1 class="text-3xl font-bold text-indigo-600 mb-2"><i class="fa-solid fa-layer-group"></i> Lumina Flash</h1>
-                <p class="text-slate-500 text-sm">Sign in to sync your flashcards across devices.</p>
+                <p class="text-slate-500 text-sm">Sign in to sync your flashcards securely.</p>
             </div>
             
             <div id="auth-error" class="hidden bg-rose-50 text-rose-600 p-3 rounded-xl text-sm font-bold text-center border border-rose-100"></div>
@@ -92,7 +94,6 @@
         </div>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
     <div id="app-container" class="flex-1 flex-col overflow-hidden w-full hidden">
         <header class="bg-white border-b border-slate-200 shrink-0 z-10 relative">
             <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -110,6 +111,9 @@
                         <button onclick="switchTab('import-export')" id="tab-import-export" class="px-4 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all">Import / Export</button>
                         <button onclick="switchTab('recycle-bin')" id="tab-recycle-bin" class="px-4 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all"><i class="fa-solid fa-trash-can"></i><span class="hidden md:inline ml-1">Bin</span></button>
                         <div class="w-px h-6 bg-slate-300 mx-1 hidden md:block"></div>
+                        <button onclick="toggleCalendar()" id="tab-calendar" class="px-3 py-2 text-xs md:text-sm font-bold rounded-lg text-indigo-500 hover:bg-indigo-100 transition-all" title="Study Calendar">
+                            <i class="fa-solid fa-calendar-days"></i>
+                        </button>
                         <button onclick="handleSignOut()" class="px-3 py-2 text-xs md:text-sm font-bold rounded-lg text-rose-500 hover:bg-rose-100 hover:text-rose-700 transition-all" title="Sign Out">
                             <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
@@ -118,159 +122,204 @@
             </div>
         </header>
 
-        <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative">
-            <div class="max-w-6xl mx-auto h-full relative">
+        <div class="flex-1 flex overflow-hidden relative">
+            <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative">
+                <div class="max-w-6xl mx-auto h-full relative">
 
-                <section id="view-folders" class="space-y-6 animate-in fade-in duration-300">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                        <div class="flex items-center gap-2 text-sm font-bold text-slate-600 flex-wrap" id="breadcrumb-container">
-                            <!-- Breadcrumbs injected here -->
+                    <!-- FOLDERS & SETS VIEW -->
+                    <section id="view-folders" class="space-y-6 animate-in fade-in duration-300">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <div class="flex items-center gap-2 text-sm font-bold text-slate-600 flex-wrap" id="breadcrumb-container">
+                                <!-- Breadcrumbs injected here -->
+                            </div>
+                            <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                                <button onclick="openNewFolderModal()" class="flex-1 md:flex-none px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-folder-plus"></i> New Folder
+                                </button>
+                                <button onclick="openNewSetModal()" class="flex-1 md:flex-none px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-plus"></i> New Set
+                                </button>
+                                <div class="w-px h-6 bg-slate-200 hidden md:block mx-1"></div>
+                                <button onclick="startStudySession('all', null, 'study')" class="flex-1 md:flex-none px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-play"></i> Study All
+                                </button>
+                                <button onclick="openCustomStudyModal()" class="flex-1 md:flex-none px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-list-check"></i> Custom Study
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                            <button onclick="openNewFolderModal()" class="flex-1 md:flex-none px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-folder-plus"></i> New Folder
-                            </button>
-                            <button onclick="openNewSetModal()" class="flex-1 md:flex-none px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-plus"></i> New Set
-                            </button>
-                            <div class="w-px h-6 bg-slate-200 hidden md:block mx-1"></div>
-                            <button onclick="startStudySession('all')" class="flex-1 md:flex-none px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-play"></i> Study All
-                            </button>
-                            <button onclick="openCustomStudyModal()" class="flex-1 md:flex-none px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-list-check"></i> Custom Study
-                            </button>
+                        <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Folders and Sets injected here -->
                         </div>
-                    </div>
-                    <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- Folders and Sets injected here -->
-                    </div>
-                </section>
+                    </section>
 
-                <section id="view-set-detail" class="hidden space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4 relative overflow-hidden">
-                        <div id="set-detail-header-bg" class="absolute inset-0 opacity-10 pointer-events-none transition-colors duration-300"></div>
-                        <div class="flex justify-between items-start relative z-10">
-                            <div class="flex-1 min-w-0 pr-4">
+                    <!-- SET DETAILS VIEW -->
+                    <section id="view-set-detail" class="hidden space-y-6 animate-in slide-in-from-right-4 duration-300">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4 relative overflow-hidden">
+                            <div id="set-detail-header-bg" class="absolute inset-0 opacity-10 pointer-events-none transition-colors duration-300"></div>
+                            <div class="flex justify-between items-start relative z-10">
+                                <div class="flex-1 min-w-0 pr-4">
                                 <button onclick="navigateUp()" class="text-slate-400 hover:text-indigo-600 text-sm font-bold flex items-center gap-1 mb-2 transition-colors">
                                     <i class="fa-solid fa-arrow-left"></i> Back
                                 </button>
-                                <h2 id="detail-set-title" class="text-2xl font-bold text-slate-800 break-words leading-tight">Set Name</h2>
-                                <p id="detail-set-stats" class="text-sm text-slate-500 mt-1">0 Cards Total</p>
+                                <h2 id="detail-set-title" class="text-2xl font-bold text-slate-800 break-words leading-tight flex items-center gap-3">
+                                    <i id="detail-set-icon" class="fa-solid fa-layer-group text-slate-400 text-xl"></i>
+                                    <span>Set Name</span>
+                                </h2>
+                                <p id="detail-set-stats" class="text-sm text-slate-500 mt-1 ml-9">0 Cards Total</p>
                             </div>
                             <div class="flex gap-2 shrink-0">
-                                <button onclick="openEditItemModal('set', selectedSet, currentPath)" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Edit Set">
+                                <button onclick="editCurrentSet()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Edit Set">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                                 <button onclick="openMoveModal()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Move Set">
                                     <i class="fa-solid fa-folder-tree"></i>
                                 </button>
-                                <button onclick="softDeleteSet(selectedSet, currentPath)" class="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Trash Set">
+                                <button onclick="deleteCurrentSet()" class="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Trash Set">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
                         </div>
                         
                         <div class="flex flex-wrap md:flex-nowrap gap-3 pt-4 border-t border-slate-100 relative z-10">
-                            <button onclick="startStudySession('set')" class="w-full md:flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-play"></i> Study This Set
-                            </button>
-                            <button onclick="openCardEditor()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-plus"></i> Add Card
-                            </button>
-                            <button onclick="openDiagramMode()" class="flex-1 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-xl transition-all flex justify-center items-center gap-2 whitespace-nowrap">
-                                <i class="fa-solid fa-image"></i> Image Occlusion
-                            </button>
-                        </div>
-                    </div>
-                    <div class="space-y-3" id="detail-cards-list">
-                        <!-- Cards injected here -->
-                    </div>
-                </section>
-
-                <section id="view-study" class="hidden h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
-                    <div class="flex justify-between items-center mb-6 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                        <button onclick="goBackFromStudy()" class="text-slate-400 hover:text-slate-600 flex items-center gap-2 text-sm font-bold transition-colors">
-                            <i class="fa-solid fa-xmark text-lg"></i> <span id="study-back-text" class="hidden md:inline">End Session</span>
-                        </button>
-                        <div class="flex gap-4 text-sm font-bold">
-                            <div class="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"><span id="count-new">0</span> <span class="text-blue-400 text-xs uppercase tracking-wider">New</span></div>
-                            <div class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg"><span id="count-due">0</span> <span class="text-amber-400 text-xs uppercase tracking-wider">Due</span></div>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 perspective-1000 w-full max-w-2xl mx-auto cursor-pointer" onclick="flipCard()">
-                        <div id="flashcard-inner" class="card-flip-inner shadow-xl rounded-3xl border border-slate-200/60 bg-white">
-                            <!-- FRONT -->
-                            <div class="card-front p-6 md:p-8 flex flex-col bg-white overflow-hidden">
-                                <div class="flex justify-between items-center text-slate-300 mb-4 shrink-0">
-                                    <i class="fa-solid fa-question-circle text-xl"></i>
-                                    <button onclick="event.stopPropagation(); readCardAloud('front')" class="p-2 hover:text-indigo-500 transition-colors z-10"><i class="fa-solid fa-volume-high"></i></button>
-                                </div>
-                                <div id="flashcard-front" class="flex-1 flex flex-col items-center justify-center text-center text-lg md:text-xl font-medium text-slate-800 overflow-y-auto custom-scrollbar w-full break-words">
-                                    <!-- Front content injected here -->
-                                </div>
-                                <div class="text-center text-xs font-bold text-slate-300 uppercase tracking-widest mt-4 shrink-0 animate-pulse">Tap to flip</div>
-                            </div>
-
-                            <!-- BACK -->
-                            <div class="card-back p-6 md:p-8 flex flex-col bg-indigo-50 border-2 border-indigo-100 overflow-hidden">
-                                <div class="flex justify-between items-center text-indigo-300 mb-4 shrink-0">
-                                    <i class="fa-solid fa-lightbulb text-xl"></i>
-                                    <button onclick="event.stopPropagation(); readCardAloud('back')" class="p-2 hover:text-indigo-600 transition-colors z-10"><i class="fa-solid fa-volume-high"></i></button>
-                                </div>
-                                <div id="flashcard-back" class="flex-1 flex flex-col items-center justify-center text-center text-lg md:text-xl font-medium text-slate-800 overflow-y-auto custom-scrollbar w-full break-words">
-                                    <!-- Back content injected here -->
-                                </div>
-                                <div id="flashcard-footnote" class="w-full mt-4 pt-4 border-t border-indigo-200 text-xs text-indigo-500/80 italic font-medium text-left hidden shrink-0 break-words"></div>
+                                <button onclick="startStudySession('set', null, 'study')" class="flex-1 md:flex-none py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-play"></i> Study Due Cards
+                                </button>
+                                <button onclick="startStudySession('set', null, 'browse')" class="flex-1 md:flex-none py-3 px-4 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-xl transition-all flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-book-open"></i> Browse Entire Set
+                                </button>
+                                <div class="w-full md:w-px md:h-12 bg-slate-200 md:mx-1 hidden md:block"></div>
+                                <button onclick="openCardEditor()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-plus"></i> Add Card
+                                </button>
+                                <button onclick="openDiagramMode()" class="flex-1 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-xl transition-all flex justify-center items-center gap-2 whitespace-nowrap">
+                                    <i class="fa-solid fa-image"></i> Image Occlusion
+                                </button>
                             </div>
                         </div>
-                    </div>
+                        
+                        <div class="space-y-3" id="detail-cards-list">
+                            <!-- Cards injected here -->
+                        </div>
+                    </section>
 
-                    <div id="grading-buttons" class="hidden mt-8 flex justify-center gap-3 md:gap-4 shrink-0 max-w-2xl mx-auto w-full pb-4">
-                        <button onclick="rateCard(1)" class="flex-1 py-4 bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
-                            <span class="text-lg">Hard</span>
-                            <span class="text-[10px] uppercase tracking-wider text-rose-400 group-hover:text-rose-500">Again</span>
-                        </button>
-                        <button onclick="rateCard(3)" class="flex-1 py-4 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
-                            <span class="text-lg">Good</span>
-                            <span class="text-[10px] uppercase tracking-wider text-emerald-400 group-hover:text-emerald-500">Standard</span>
-                        </button>
-                        <button onclick="rateCard(5)" class="flex-1 py-4 bg-white hover:bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
-                            <span class="text-lg">Easy</span>
-                            <span class="text-[10px] uppercase tracking-wider text-blue-400 group-hover:text-blue-500">Delay</span>
-                        </button>
-                    </div>
-                </section>
+                    <!-- STUDY / BROWSE VIEW -->
+                    <section id="view-study" class="hidden h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
+                        <div class="flex justify-between items-center mb-6 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <button onclick="goBackFromStudy()" class="text-slate-400 hover:text-slate-600 flex items-center gap-2 text-sm font-bold transition-colors">
+                                <i class="fa-solid fa-xmark text-lg"></i> <span id="study-back-text" class="hidden md:inline">End Session</span>
+                            </button>
+                            
+                            <div id="study-stats-header" class="flex gap-4 text-sm font-bold">
+                                <div class="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"><span id="count-new">0</span> <span class="text-blue-400 text-xs uppercase tracking-wider">New</span></div>
+                                <div class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg"><span id="count-due">0</span> <span class="text-amber-400 text-xs uppercase tracking-wider">Due</span></div>
+                            </div>
 
-                <section id="view-import-export" class="hidden space-y-6 max-w-3xl mx-auto animate-in fade-in duration-300 pb-10">
-                    <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
-                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-import text-indigo-500"></i> Import JSON</h2>
-                        <p class="text-sm text-slate-500 leading-relaxed">Paste a JSON code block here to instantly import a batch of flashcards into your library.</p>
-                        <textarea id="import-json-text" rows="6" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-mono text-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none custom-scrollbar" placeholder='[{"front": "Question...", "back": "Answer...", "category": "Deck Name"}]'></textarea>
-                        <button onclick="importDeck()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto">Import Cards</button>
-                    </div>
+                            <div id="browse-stats-header" class="hidden text-sm font-bold text-slate-500 bg-slate-100 px-4 py-1.5 rounded-lg border border-slate-200">
+                                Card <span id="browse-current-num" class="text-indigo-600">1</span> of <span id="browse-total-num">10</span>
+                            </div>
+                        </div>
 
-                    <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
-                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-emerald-500"></i> Export Backup</h2>
-                        <p class="text-sm text-slate-500 leading-relaxed">Export your entire library as a JSON string. Save this text somewhere safe to backup your progress.</p>
-                        <button onclick="exportDeck()" class="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Copy JSON to Clipboard</button>
-                    </div>
-                </section>
+                        <div class="flex-1 perspective-1000 w-full max-w-2xl mx-auto cursor-pointer" onclick="flipCard()">
+                            <div id="flashcard-inner" class="card-flip-inner shadow-xl rounded-3xl border border-slate-200/60 bg-white">
+                                <!-- FRONT -->
+                                <div class="card-front p-6 md:p-8 flex flex-col bg-white overflow-hidden">
+                                    <div class="flex justify-between items-center text-slate-300 mb-4 shrink-0">
+                                        <i class="fa-solid fa-question-circle text-xl"></i>
+                                        <button onclick="event.stopPropagation(); readCardAloud('front')" class="p-2 hover:text-indigo-500 transition-colors z-10"><i class="fa-solid fa-volume-high"></i></button>
+                                    </div>
+                                    <div id="flashcard-front" class="flex-1 flex flex-col items-center justify-center text-center text-lg md:text-xl font-medium text-slate-800 overflow-y-auto custom-scrollbar w-full break-words">
+                                        <!-- Front content injected here -->
+                                    </div>
+                                    <div id="flashcard-footnote-front" class="w-full mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 italic font-medium text-left hidden shrink-0 break-words"></div>
+                                    <div class="text-center text-xs font-bold text-slate-300 uppercase tracking-widest mt-4 shrink-0 animate-pulse">Tap to flip</div>
+                                </div>
 
-                <section id="view-recycle-bin" class="hidden space-y-6 animate-in fade-in duration-300 pb-10">
-                    <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-trash-can text-slate-400"></i> Recycle Bin</h2>
-                        <button onclick="emptyRecycleBin()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-xl transition-all flex items-center gap-2">
-                            <i class="fa-solid fa-dumpster-fire"></i> Empty Bin
-                        </button>
-                    </div>
-                    <div id="recycle-bin-list" class="space-y-3">
-                        <!-- Trashed items injected here -->
-                    </div>
-                </section>
-            </div>
-        </main>
+                                <!-- BACK -->
+                                <div class="card-back p-6 md:p-8 flex flex-col bg-indigo-50 border-2 border-indigo-100 overflow-hidden">
+                                    <div class="flex justify-between items-center text-indigo-300 mb-4 shrink-0">
+                                        <i class="fa-solid fa-lightbulb text-xl"></i>
+                                        <button onclick="event.stopPropagation(); readCardAloud('back')" class="p-2 hover:text-indigo-600 transition-colors z-10"><i class="fa-solid fa-volume-high"></i></button>
+                                    </div>
+                                    <div id="flashcard-back" class="flex-1 flex flex-col items-center justify-center text-center text-lg md:text-xl font-medium text-slate-800 overflow-y-auto custom-scrollbar w-full break-words">
+                                        <!-- Back content injected here -->
+                                    </div>
+                                    <div id="flashcard-footnote" class="w-full mt-4 pt-4 border-t border-indigo-200 text-xs text-indigo-500/80 italic font-medium text-left hidden shrink-0 break-words"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grading Controls (SRS Mode) -->
+                        <div id="grading-buttons" class="hidden mt-8 flex justify-center gap-3 md:gap-4 shrink-0 max-w-2xl mx-auto w-full pb-4">
+                            <button onclick="rateCard(1)" class="flex-1 py-4 bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
+                                <span class="text-lg">Hard</span>
+                                <span class="text-[10px] uppercase tracking-wider text-rose-400 group-hover:text-rose-500">Again</span>
+                            </button>
+                            <button onclick="rateCard(3)" class="flex-1 py-4 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
+                                <span class="text-lg">Good</span>
+                                <span class="text-[10px] uppercase tracking-wider text-emerald-400 group-hover:text-emerald-500">Standard</span>
+                            </button>
+                            <button onclick="rateCard(5)" class="flex-1 py-4 bg-white hover:bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
+                                <span class="text-lg">Easy</span>
+                                <span class="text-[10px] uppercase tracking-wider text-blue-400 group-hover:text-blue-500">Delay</span>
+                            </button>
+                        </div>
+
+                        <!-- Browse Controls (Review Mode) -->
+                        <div id="browse-controls" class="hidden mt-8 flex justify-between items-center gap-4 shrink-0 max-w-2xl mx-auto w-full pb-4">
+                            <button onclick="navigateBrowse(-1)" class="flex-1 py-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95">
+                                <i class="fa-solid fa-arrow-left"></i> Previous
+                            </button>
+                            <button onclick="navigateBrowse(1)" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white font-bold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95">
+                                Next <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- IMPORT EXPORT VIEW -->
+                    <section id="view-import-export" class="hidden space-y-6 max-w-3xl mx-auto animate-in fade-in duration-300 pb-10">
+                        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
+                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-import text-indigo-500"></i> Import JSON</h2>
+                            <p class="text-sm text-slate-500 leading-relaxed">Paste a JSON code block here to instantly import a batch of flashcards into your library.</p>
+                            <textarea id="import-json-text" rows="6" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-mono text-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none custom-scrollbar" placeholder='[{"front": "Question...", "back": "Answer...", "category": "Deck Name"}]'></textarea>
+                            <button onclick="importDeck()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto">Import Cards</button>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
+                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-emerald-500"></i> Export Backup</h2>
+                            <p class="text-sm text-slate-500 leading-relaxed">Export your entire library as a JSON string. Save this text somewhere safe to backup your progress.</p>
+                            <button onclick="exportDeck()" class="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Copy JSON to Clipboard</button>
+                        </div>
+                    </section>
+
+                    <!-- RECYCLE BIN VIEW -->
+                    <section id="view-recycle-bin" class="hidden space-y-6 animate-in fade-in duration-300 pb-10">
+                        <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-trash-can text-slate-400"></i> Recycle Bin</h2>
+                            <button onclick="emptyRecycleBin()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-xl transition-all flex items-center gap-2">
+                                <i class="fa-solid fa-dumpster-fire"></i> Empty Bin
+                            </button>
+                        </div>
+                        <div id="recycle-bin-list" class="space-y-3">
+                            <!-- Trashed items injected here -->
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <aside id="calendar-sidebar" class="hidden w-80 bg-white border-l border-slate-200 shadow-2xl z-40 shrink-0 absolute right-0 top-0 bottom-0 md:relative md:shadow-none flex-col animate-in slide-in-from-right-4 duration-300">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-indigo-500"></i> Study Schedule</h3>
+                    <button onclick="toggleCalendar()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-3 border-b border-slate-100 bg-white text-xs text-slate-500 font-medium">
+                    This schedule shows when your cards will be due for review based on spaced repetition algorithms.
+                </div>
+                <div id="calendar-list" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 bg-white">
+                    <!-- Calendar days injected here -->
+                </div>
+            </aside>
+        </div>
     </div>
 
     <div id="modal-container">
@@ -295,9 +344,9 @@
             </div>
         </div>
 
-        <!-- Edit/Rename Modal (Color & Name) -->
+        <!-- Edit/Rename Modal (Color, Icon, & Name) -->
         <div id="edit-item-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-5">
+            <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5">
                 <h3 id="edit-item-title" class="font-bold text-lg text-slate-800">Edit Item</h3>
                 <div class="space-y-1">
                     <label class="text-xs font-bold text-slate-500 uppercase">Name</label>
@@ -313,7 +362,24 @@
                         <button onclick="selectThemeColor('amber')" id="theme-btn-amber" class="w-8 h-8 rounded-full bg-amber-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
                     </div>
                 </div>
-                <div class="flex gap-2 pt-2">
+                
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <label class="text-xs font-bold text-slate-500 uppercase">Icon</label>
+                    <div class="grid grid-cols-5 gap-2" id="icon-picker-container">
+                        <button onclick="selectIcon('fa-folder')" id="icon-btn-fa-folder" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-folder text-lg"></i></button>
+                        <button onclick="selectIcon('fa-layer-group')" id="icon-btn-fa-layer-group" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-layer-group text-lg"></i></button>
+                        <button onclick="selectIcon('fa-book')" id="icon-btn-fa-book" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-book text-lg"></i></button>
+                        <button onclick="selectIcon('fa-brain')" id="icon-btn-fa-brain" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-brain text-lg"></i></button>
+                        <button onclick="selectIcon('fa-language')" id="icon-btn-fa-language" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-language text-lg"></i></button>
+                        <button onclick="selectIcon('fa-calculator')" id="icon-btn-fa-calculator" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-calculator text-lg"></i></button>
+                        <button onclick="selectIcon('fa-atom')" id="icon-btn-fa-atom" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-atom text-lg"></i></button>
+                        <button onclick="selectIcon('fa-globe')" id="icon-btn-fa-globe" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-globe text-lg"></i></button>
+                        <button onclick="selectIcon('fa-music')" id="icon-btn-fa-music" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-music text-lg"></i></button>
+                        <button onclick="selectIcon('fa-briefcase')" id="icon-btn-fa-briefcase" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-briefcase text-lg"></i></button>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2 border-t border-slate-100">
                     <button onclick="closeModal('edit-item-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
                     <button id="edit-item-submit" class="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl">Save</button>
                 </div>
@@ -380,6 +446,7 @@
                             <button onclick="clearUploadedImage('preview-front')" class="text-xs text-red-500 mt-1 font-bold">Remove</button>
                         </div>
                         <input type="hidden" id="editor-draw-front">
+                        <textarea id="editor-footnote-front" rows="1" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs italic text-slate-500 focus:border-indigo-500 outline-none mt-2" placeholder="Front footnote (optional hint or context...)"></textarea>
                     </div>
 
                     <div class="space-y-1 pt-2 border-t border-slate-100">
@@ -400,7 +467,7 @@
                     </div>
 
                     <div class="space-y-1 pt-2 border-t border-slate-100">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Footnote (Optional Info)</label>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Back Footnote (Optional Info)</label>
                         <textarea id="editor-footnote" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm italic text-slate-600 focus:border-indigo-500 outline-none" placeholder="Mnemonics, sources, extra context..."></textarea>
                     </div>
                 </div>
@@ -412,25 +479,52 @@
             </div>
         </div>
 
-        <!-- Drawing Modal -->
+        <!-- Enhanced Drawing Modal (Includes Text & Image Insertion) -->
         <div id="drawing-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[70] hidden flex flex-col items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-4 shadow-2xl flex flex-col gap-4">
+            <div class="bg-white rounded-2xl p-4 shadow-2xl flex flex-col gap-4 w-full max-w-lg">
                 <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800">Draw Sketch</h3>
+                    <h3 class="font-bold text-slate-800">Advanced Drawing Tool</h3>
                     <div class="flex gap-2">
-                        <button onclick="clearCanvas()" class="px-3 py-1 bg-rose-100 text-rose-600 text-xs font-bold rounded-lg">Clear</button>
-                        <button onclick="saveDrawing()" class="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">Save Sketch</button>
+                        <button onclick="clearCanvas()" class="px-3 py-1 bg-rose-100 text-rose-600 text-xs font-bold rounded-lg hover:bg-rose-200 transition">Clear</button>
+                        <button onclick="saveDrawing()" class="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-200 transition">Save Sketch</button>
                     </div>
                 </div>
-                <div class="flex gap-2 items-center">
-                    <button onclick="setBrush('#0f172a')" class="w-6 h-6 rounded-full bg-slate-900 border-2 border-transparent focus:border-indigo-500"></button>
-                    <button onclick="setBrush('#dc2626')" class="w-6 h-6 rounded-full bg-red-600 border-2 border-transparent focus:border-indigo-500"></button>
-                    <button onclick="setBrush('#2563eb')" class="w-6 h-6 rounded-full bg-blue-600 border-2 border-transparent focus:border-indigo-500"></button>
-                    <button onclick="setBrush('#16a34a')" class="w-6 h-6 rounded-full bg-green-600 border-2 border-transparent focus:border-indigo-500"></button>
-                    <input type="range" id="brush-size" min="1" max="10" value="3" class="ml-4 w-24">
+                
+                <!-- Enhanced Toolbar -->
+                <div class="flex flex-wrap gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <!-- Tools -->
+                    <div class="flex gap-1 bg-white p-1 rounded-lg border border-slate-200">
+                        <button id="tool-btn-brush" onclick="setDrawTool('brush')" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 tool-active transition-colors" title="Brush Tool"><i class="fa-solid fa-paintbrush"></i></button>
+                        <button id="tool-btn-text" onclick="setDrawTool('text')" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors" title="Text Stamp Tool"><i class="fa-solid fa-font"></i></button>
+                    </div>
+                    <div class="w-px h-6 bg-slate-300 mx-1"></div>
+                    
+                    <!-- Brushes/Colors -->
+                    <div class="flex gap-1 items-center">
+                        <button onclick="setBrush('#0f172a')" class="w-6 h-6 rounded-full bg-slate-900 border-2 border-transparent focus:border-indigo-500"></button>
+                        <button onclick="setBrush('#dc2626')" class="w-6 h-6 rounded-full bg-red-600 border-2 border-transparent focus:border-indigo-500"></button>
+                        <button onclick="setBrush('#2563eb')" class="w-6 h-6 rounded-full bg-blue-600 border-2 border-transparent focus:border-indigo-500"></button>
+                        <button onclick="setBrush('#16a34a')" class="w-6 h-6 rounded-full bg-green-600 border-2 border-transparent focus:border-indigo-500"></button>
+                        <input type="range" id="brush-size" min="1" max="10" value="3" class="ml-2 w-20">
+                    </div>
+                    
+                    <div class="w-px h-6 bg-slate-300 mx-1"></div>
+                    
+                    <!-- Text Input (Hidden initially) -->
+                    <input type="text" id="draw-text-val" class="hidden flex-1 min-w-[100px] bg-white border border-slate-200 rounded p-1 text-sm outline-none focus:border-indigo-500" placeholder="Type text, tap canvas...">
+                    
+                    <!-- Image Insertion -->
+                    <label class="ml-auto flex items-center justify-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+                        <i class="fa-solid fa-image"></i> Add Image
+                        <input type="file" accept="image/*" class="hidden" onchange="drawInsertImage(this)">
+                    </label>
                 </div>
-                <canvas id="draw-canvas" width="300" height="300" class="border border-slate-200 rounded-xl bg-slate-50 cursor-crosshair touch-none"></canvas>
-                <button onclick="closeModal('drawing-modal')" class="py-2 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
+
+                <div class="flex justify-center bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
+                    <canvas id="draw-canvas" width="400" height="300" class="bg-white cursor-crosshair touch-none" style="max-width: 100%; height: auto; display: block;"></canvas>
+                </div>
+                
+                <button onclick="closeModal('drawing-modal')" class="py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition">Cancel</button>
             </div>
         </div>
 
@@ -483,6 +577,7 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, deleteDoc, getDocs, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Hardcoded Firebase Keys for direct connection
         const appId = 'lumina-flash-6298f'; 
         const firebaseConfig = {
             apiKey: "AIzaSyDqk1ojTgEnzsGKnNFphi-CbMPIww43Ewo",
@@ -496,7 +591,6 @@
         let app, auth, db, userId;
         let unsubscribeMeta, unsubscribeCards, unsubscribeTrash;
 
-        // Core App State
         let deck = [];
         let folders = { '_root': [] }; 
         let folderMeta = {}; 
@@ -505,18 +599,21 @@
         
         let currentPath = '_root';
         let selectedSet = null;
+        
+        let sessionMode = 'study'; // 'study' (SRS) or 'browse' (Free Review)
         let activeStudyTarget = { type: null, path: null }; 
         let currentCardIndex = -1;
-        let editingCardId = null;
+        let browseCardsList = []; 
         
-        // Modal Editing State
+        let editingCardId = null;
         let editingItemType = null; 
         let editingItemOldName = null;
         let editingItemParentPath = null;
         let selectedThemeColor = 'slate';
+        let selectedIcon = 'fa-folder';
 
-        // Drawing & Diagram State
         let drawingTarget = null; 
+        let drawTool = 'brush'; // 'brush' or 'text'
         let canvas, ctx;
         let isDrawing = false;
         let brushColor = '#0f172a';
@@ -524,6 +621,7 @@
         let occlusionMasks = []; 
         let isMaskDrawing = false;
         let maskStartX = 0, maskStartY = 0;
+        let isCalendarOpen = false;
 
         let syncTimeout;
         const triggerSyncAnim = () => {
@@ -532,17 +630,19 @@
             clearTimeout(syncTimeout);
             syncTimeout = setTimeout(() => {
                 el.innerHTML = '<i class="fa-solid fa-cloud text-emerald-500"></i> Synced';
+                if(isCalendarOpen) renderCalendar(); // Refresh calendar if open
             }, 800);
         };
 
+        // Utility to safely escape strings for inline event handlers
+        const esc = (str) => String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
         const initCloud = async () => {
             try {
-                console.log("Initializing Firebase...");
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Listen for Authentication State Changes
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
@@ -569,9 +669,7 @@
                         appContainer.classList.remove('flex');
                     }
                 });
-
             } catch (e) {
-                console.error("Firebase Connection Error:", e);
                 showAlert("Cloud Connection Failed: " + e.message);
             }
         };
@@ -618,7 +716,6 @@
                     saveMetadataToCloud(); 
                 }
             }, (error) => {
-                console.error("Metadata Sync Error:", error);
                 document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud-xmark text-amber-500"></i> Sync Error';
             });
 
@@ -627,14 +724,15 @@
                 if (!document.getElementById('view-set-detail').classList.contains('hidden') && selectedSet) {
                     openSetDetail(selectedSet); 
                 }
-            }, (error) => console.error(error));
+                if (isCalendarOpen) renderCalendar();
+            });
 
             unsubscribeTrash = onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'trash'), (snapshot) => {
                 trash = snapshot.docs.map(doc => doc.data());
                 if (!document.getElementById('view-recycle-bin').classList.contains('hidden')) {
                     renderRecycleBin();
                 }
-            }, (error) => console.error("Trash Sync Error:", error));
+            });
         };
 
         const saveMetadataToCloud = () => {
@@ -670,25 +768,16 @@
         };
 
         const generateId = () => Math.random().toString(36).substr(2, 9);
-        const showAlert = (msg) => {
-            document.getElementById('alert-message').innerText = msg;
-            document.getElementById('alert-modal').classList.remove('hidden');
-        };
+        const showAlert = (msg) => { document.getElementById('alert-message').innerText = msg; document.getElementById('alert-modal').classList.remove('hidden'); };
         const closeModal = (id) => document.getElementById(id).classList.add('hidden');
 
         const switchTab = (tabId) => {
             ['study-sets', 'import-export', 'recycle-bin'].forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
-                if(el) {
-                    el.classList.remove('bg-white', 'shadow-sm', 'text-indigo-700');
-                    el.classList.add('text-slate-500');
-                }
+                if(el) { el.classList.remove('bg-white', 'shadow-sm', 'text-indigo-700'); el.classList.add('text-slate-500'); }
             });
             const activeEl = document.getElementById(`tab-${tabId}`);
-            if(activeEl) {
-                activeEl.classList.remove('text-slate-500');
-                activeEl.classList.add('bg-white', 'shadow-sm', 'text-indigo-700');
-            }
+            if(activeEl) { activeEl.classList.remove('text-slate-500'); activeEl.classList.add('bg-white', 'shadow-sm', 'text-indigo-700'); }
 
             if (tabId === 'study-sets') { currentPath = '_root'; switchView('folders'); }
             if (tabId === 'import-export') switchView('import-export');
@@ -708,9 +797,8 @@
             Object.keys(folders).forEach(k => {
                 if (k === '_root' || k === path) return;
                 let parentPrefix = path === '_root' ? '' : path + '/';
-                if (path === '_root' && k.indexOf('/') === -1) {
-                    children.folders.push(k);
-                } else if (path !== '_root' && k.startsWith(parentPrefix)) {
+                if (path === '_root' && k.indexOf('/') === -1) { children.folders.push(k); } 
+                else if (path !== '_root' && k.startsWith(parentPrefix)) {
                     let remainder = k.substring(parentPrefix.length);
                     if (remainder.indexOf('/') === -1) children.folders.push(k);
                 }
@@ -748,7 +836,7 @@
                     buildPath += (i === 0 ? p : '/' + p);
                     crumbHTML += ` <i class="fa-solid fa-chevron-right text-[10px] text-slate-300 mx-1"></i> `;
                     if (i === parts.length - 1) crumbHTML += `<span class="text-slate-800">${p}</span>`;
-                    else crumbHTML += `<button onclick="openFolder('${buildPath}')" class="hover:text-indigo-600 transition-colors">${p}</button>`;
+                    else crumbHTML += `<button onclick="openFolder('${esc(buildPath)}')" class="hover:text-indigo-600 transition-colors">${p}</button>`;
                 });
             }
             bcContainer.innerHTML = crumbHTML;
@@ -763,17 +851,18 @@
                 let folderCards = getCardsInFolderTree(fPath);
                 let dueCount = folderCards.filter(c => c.nextReview <= now).length;
                 let color = (folderMeta[fPath] && folderMeta[fPath].color) ? folderMeta[fPath].color : 'slate';
+                let icon = (folderMeta[fPath] && folderMeta[fPath].icon) ? folderMeta[fPath].icon : 'fa-folder';
                 
                 grid.innerHTML += `
-                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openFolder('${fPath}')">
+                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openFolder('${esc(fPath)}')">
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-start gap-3 w-full pr-2">
-                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid fa-folder"></i></div>
+                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid ${icon}"></i></div>
                                 <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${fName}</h3>
                             </div>
                             <div class="flex flex-col gap-1 items-end shrink-0">
-                                <button onclick="event.stopPropagation(); openEditItemModal('folder', '${fName}', '${currentPath}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-0 group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
-                                <button onclick="event.stopPropagation(); startStudySession('folder', '${fPath}')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); openEditItemModal('folder', '${esc(fName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-0 group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); startStudySession('folder', '${esc(fPath)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
                             </div>
                         </div>
                         <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
@@ -788,17 +877,18 @@
                 let setCards = deck.filter(c => c.category === fullSetName);
                 let dueCount = setCards.filter(c => c.nextReview <= now).length;
                 let color = (setMeta[fullSetName] && setMeta[fullSetName].color) ? setMeta[fullSetName].color : 'slate';
+                let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
 
                 grid.innerHTML += `
-                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openSetDetail('${setName}')">
+                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openSetDetail('${esc(setName)}')">
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-start gap-3 w-full pr-2">
-                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid fa-layer-group"></i></div>
+                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid ${icon}"></i></div>
                                 <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${setName}</h3>
                             </div>
                             <div class="flex flex-col gap-1 items-end shrink-0">
-                                <button onclick="event.stopPropagation(); openEditItemModal('set', '${setName}', '${currentPath}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-0 group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
-                                <button onclick="event.stopPropagation(); startStudySession('set', '${fullSetName}')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); openEditItemModal('set', '${esc(setName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-0 group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); startStudySession('set', '${esc(fullSetName)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
                             </div>
                         </div>
                         <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
@@ -828,70 +918,49 @@
             renderFoldersView();
         };
 
-        const openNewFolderModal = () => {
-            document.getElementById('input-modal-title').innerText = "New Folder Name";
-            const field = document.getElementById('input-modal-field');
-            field.value = '';
-            document.getElementById('input-modal-submit').onclick = createFolder;
-            document.getElementById('input-modal').classList.remove('hidden');
-            field.focus();
-        };
-
+        const openNewFolderModal = () => { document.getElementById('input-modal-title').innerText = "New Folder Name"; document.getElementById('input-modal-field').value = ''; document.getElementById('input-modal-submit').onclick = createFolder; document.getElementById('input-modal').classList.remove('hidden'); document.getElementById('input-modal-field').focus(); };
         const createFolder = () => {
             let name = document.getElementById('input-modal-field').value.trim();
             if (!name || name.includes('/')) return showAlert("Invalid name. '/' is not allowed.");
             let newPath = currentPath === '_root' ? name : currentPath + '/' + name;
             if (folders[newPath]) return showAlert("Folder already exists.");
-            
-            folders[newPath] = [];
-            folderMeta[newPath] = { color: 'slate' };
-            saveMetadataToCloud();
-            
-            closeModal('input-modal');
-            renderFoldersView();
+            folders[newPath] = []; folderMeta[newPath] = { color: 'slate', icon: 'fa-folder' }; saveMetadataToCloud();
+            closeModal('input-modal'); renderFoldersView();
         };
 
-        const openNewSetModal = () => {
-            document.getElementById('input-modal-title').innerText = "New Set Name";
-            const field = document.getElementById('input-modal-field');
-            field.value = '';
-            document.getElementById('input-modal-submit').onclick = createSet;
-            document.getElementById('input-modal').classList.remove('hidden');
-            field.focus();
-        };
-
+        const openNewSetModal = () => { document.getElementById('input-modal-title').innerText = "New Set Name"; document.getElementById('input-modal-field').value = ''; document.getElementById('input-modal-submit').onclick = createSet; document.getElementById('input-modal').classList.remove('hidden'); document.getElementById('input-modal-field').focus(); };
         const createSet = () => {
             let name = document.getElementById('input-modal-field').value.trim();
             if (!name) return showAlert("Please enter a name.");
             if (folders[currentPath] && folders[currentPath].includes(name)) return showAlert("A set with this name already exists here.");
-            
             if(!folders[currentPath]) folders[currentPath] = [];
             folders[currentPath].push(name);
             let fullSetName = currentPath === '_root' ? name : `${currentPath}/${name}`;
-            setMeta[fullSetName] = { color: 'slate' };
-            
-            saveMetadataToCloud();
-            closeModal('input-modal');
-            openSetDetail(name);
+            setMeta[fullSetName] = { color: 'slate', icon: 'fa-layer-group' }; saveMetadataToCloud();
+            closeModal('input-modal'); openSetDetail(name);
         };
 
         const openEditItemModal = (type, oldName, parentPath) => {
-            editingItemType = type;
-            editingItemOldName = oldName;
-            editingItemParentPath = parentPath;
-            
-            let fullPath = type === 'folder' 
-                ? (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`)
-                : (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`);
-                
+            editingItemType = type; editingItemOldName = oldName; editingItemParentPath = parentPath;
+            let fullPath = type === 'folder' ? (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`) : (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`);
             document.getElementById('edit-item-title').innerText = type === 'folder' ? "Edit Folder" : "Edit Set";
             document.getElementById('edit-item-name').value = oldName;
             
             let currentColor = 'slate';
-            if (type === 'folder' && folderMeta[fullPath]) currentColor = folderMeta[fullPath].color || 'slate';
-            if (type === 'set' && setMeta[fullPath]) currentColor = setMeta[fullPath].color || 'slate';
+            let currentIcon = type === 'folder' ? 'fa-folder' : 'fa-layer-group';
+
+            if (type === 'folder' && folderMeta[fullPath]) {
+                currentColor = folderMeta[fullPath].color || 'slate';
+                currentIcon = folderMeta[fullPath].icon || 'fa-folder';
+            }
+            if (type === 'set' && setMeta[fullPath]) {
+                currentColor = setMeta[fullPath].color || 'slate';
+                currentIcon = setMeta[fullPath].icon || 'fa-layer-group';
+            }
             
             selectThemeColor(currentColor);
+            selectIcon(currentIcon);
+
             document.getElementById('edit-item-submit').onclick = saveEditedItem;
             document.getElementById('edit-item-modal').classList.remove('hidden');
         };
@@ -902,79 +971,67 @@
             document.getElementById(`theme-btn-${color}`).classList.add('ring-4', 'ring-offset-2', 'ring-indigo-500');
         };
 
+        const selectIcon = (iconClass) => {
+            selectedIcon = iconClass;
+            document.querySelectorAll('.icon-selector').forEach(btn => {
+                btn.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                btn.classList.add('border-transparent', 'bg-slate-50', 'text-slate-600');
+            });
+            const activeBtn = document.getElementById(`icon-btn-${iconClass}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'bg-slate-50', 'text-slate-600');
+                activeBtn.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+            }
+        };
+
         const saveEditedItem = () => {
             let newName = document.getElementById('edit-item-name').value.trim();
             if (!newName || newName.includes('/')) return showAlert("Invalid name. '/' is not allowed.");
-            
             let oldFullPath = editingItemParentPath === '_root' ? editingItemOldName : `${editingItemParentPath}/${editingItemOldName}`;
             let newFullPath = editingItemParentPath === '_root' ? newName : `${editingItemParentPath}/${newName}`;
 
             if (editingItemType === 'folder') {
                 if (newName !== editingItemOldName && folders[newFullPath]) return showAlert("A folder with this name already exists.");
-                
                 if (newName !== editingItemOldName) {
-                    folders[newFullPath] = folders[oldFullPath];
-                    delete folders[oldFullPath];
-                    folderMeta[newFullPath] = folderMeta[oldFullPath] || {};
-                    delete folderMeta[oldFullPath];
-                    
+                    folders[newFullPath] = folders[oldFullPath]; delete folders[oldFullPath];
+                    folderMeta[newFullPath] = folderMeta[oldFullPath] || {}; delete folderMeta[oldFullPath];
                     Object.keys(folders).forEach(k => {
                         if (k.startsWith(oldFullPath + '/')) {
                             let updatedChildPath = k.replace(oldFullPath, newFullPath);
-                            folders[updatedChildPath] = folders[k];
-                            delete folders[k];
+                            folders[updatedChildPath] = folders[k]; delete folders[k];
                             if(folderMeta[k]) { folderMeta[updatedChildPath] = folderMeta[k]; delete folderMeta[k]; }
                         }
                     });
-                    
-                    deck.forEach(c => {
-                        if (c.category === oldFullPath || c.category.startsWith(oldFullPath + '/')) {
-                            c.category = c.category.replace(oldFullPath, newFullPath);
-                            saveCardToCloud(c);
-                        }
-                    });
-                    
-                    Object.keys(setMeta).forEach(k => {
-                        if (k.startsWith(oldFullPath + '/')) {
-                            let updatedSetPath = k.replace(oldFullPath, newFullPath);
-                            setMeta[updatedSetPath] = setMeta[k];
-                            delete setMeta[k];
-                        }
-                    });
+                    deck.forEach(c => { if (c.category === oldFullPath || c.category.startsWith(oldFullPath + '/')) { c.category = c.category.replace(oldFullPath, newFullPath); saveCardToCloud(c); } });
+                    Object.keys(setMeta).forEach(k => { if (k.startsWith(oldFullPath + '/')) { let updatedSetPath = k.replace(oldFullPath, newFullPath); setMeta[updatedSetPath] = setMeta[k]; delete setMeta[k]; } });
                 }
                 folderMeta[newFullPath].color = selectedThemeColor;
-                
+                folderMeta[newFullPath].icon = selectedIcon;
             } else if (editingItemType === 'set') {
                 if (newName !== editingItemOldName && folders[editingItemParentPath].includes(newName)) return showAlert("A set with this name already exists here.");
-                
                 if (newName !== editingItemOldName) {
                     let idx = folders[editingItemParentPath].indexOf(editingItemOldName);
                     folders[editingItemParentPath][idx] = newName;
-                    setMeta[newFullPath] = setMeta[oldFullPath] || {};
-                    delete setMeta[oldFullPath];
-                    
-                    deck.forEach(c => {
-                        if (c.category === oldFullPath) {
-                            c.category = newFullPath;
-                            saveCardToCloud(c);
-                        }
-                    });
+                    setMeta[newFullPath] = setMeta[oldFullPath] || {}; delete setMeta[oldFullPath];
+                    deck.forEach(c => { if (c.category === oldFullPath) { c.category = newFullPath; saveCardToCloud(c); } });
                 }
                 if(!setMeta[newFullPath]) setMeta[newFullPath] = {};
                 setMeta[newFullPath].color = selectedThemeColor;
+                setMeta[newFullPath].icon = selectedIcon;
                 if(selectedSet === editingItemOldName) selectedSet = newName;
             }
-
-            saveMetadataToCloud();
-            closeModal('edit-item-modal');
-            if (selectedSet) openSetDetail(selectedSet);
-            else renderFoldersView();
+            saveMetadataToCloud(); closeModal('edit-item-modal');
+            if (selectedSet) openSetDetail(selectedSet); else renderFoldersView();
         };
 
         const openSetDetail = (setName) => {
             selectedSet = setName;
-            document.getElementById('detail-set-title').innerText = setName;
             let fullSetName = currentPath === '_root' ? setName : `${currentPath}/${setName}`;
+            
+            let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
+            document.getElementById('detail-set-icon').className = `fa-solid ${icon} text-slate-400 text-xl`;
+            document.getElementById('detail-set-title').querySelector('span').innerText = setName;
+
             const setCards = deck.filter(c => c.category === fullSetName);
             document.getElementById('detail-set-stats').innerText = `${setCards.length} Cards Total`;
 
@@ -991,14 +1048,14 @@
                     let backText = c.type === 'occlusion' ? 'Diagram Mask' : (c.back.replace(/<[^>]*>?/gm, '') || 'Image Card');
                     let icon = c.type === 'occlusion' ? '<i class="fa-solid fa-image text-amber-500 mr-2"></i>' : '';
                     return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center hover:border-indigo-200 transition-colors group">
+                    <div onclick="startBrowseSession('card', '${c.id}')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center hover:border-indigo-300 hover:shadow transition-all group cursor-pointer">
                         <div class="truncate flex-1 pr-4">
                             <div class="text-sm font-bold text-slate-800 truncate flex items-center">${icon}${previewText}</div>
                             <div class="text-xs text-slate-400 truncate mt-0.5">${backText}</div>
                         </div>
                         <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="openEditCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="softDeleteCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="event.stopPropagation(); openEditCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="event.stopPropagation(); softDeleteCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </div>`;
                 }).join('');
@@ -1031,30 +1088,226 @@
 
             let oldIdx = folders[currentPath].indexOf(selectedSet);
             if (oldIdx > -1) folders[currentPath].splice(oldIdx, 1);
-            
             if(!folders[dest]) folders[dest] = [];
             folders[dest].push(selectedSet);
             
             let oldFullPath = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
             let newFullPath = dest === '_root' ? selectedSet : `${dest}/${selectedSet}`;
             
-            deck.forEach(c => {
-                if (c.category === oldFullPath) {
-                    c.category = newFullPath;
-                    saveCardToCloud(c);
-                }
-            });
+            deck.forEach(c => { if (c.category === oldFullPath) { c.category = newFullPath; saveCardToCloud(c); } });
+            if (setMeta[oldFullPath]) { setMeta[newFullPath] = setMeta[oldFullPath]; delete setMeta[oldFullPath]; }
+            saveMetadataToCloud(); closeModal('move-modal'); currentPath = dest; switchView('folders'); 
+        };
+
+        const openCustomStudyModal = () => {
+            let html = ''; let setsFound = false;
+            for (const [folderPath, sets] of Object.entries(folders)) {
+                if (sets.length === 0) continue;
+                setsFound = true;
+                let displayPath = folderPath === '_root' ? 'Main Page' : folderPath.replace(/\//g, ' > ');
+                html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-4 mb-2 px-1">${displayPath}</div>`;
+                sets.forEach(s => {
+                    let fullPath = folderPath === '_root' ? s : `${folderPath}/${s}`;
+                    html += `
+                    <label class="flex items-center gap-3 p-3 mb-1 rounded-xl border border-slate-100 bg-slate-50 hover:bg-amber-50 cursor-pointer group transition-colors">
+                        <input type="checkbox" value="${fullPath}" class="custom-study-checkbox w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer">
+                        <span class="text-sm font-bold text-slate-700 group-hover:text-amber-700 transition-colors">${s}</span>
+                    </label>`;
+                });
+            }
+            if (!setsFound) html = '<div class="text-sm text-slate-500 text-center py-6">No sets available.</div>';
+            document.getElementById('custom-study-list').innerHTML = html; document.getElementById('custom-study-modal').classList.remove('hidden');
+        };
+
+        const startCustomStudy = () => {
+            const checkboxes = document.querySelectorAll('.custom-study-checkbox:checked');
+            const selectedSets = Array.from(checkboxes).map(cb => cb.value);
+            if (selectedSets.length === 0) return showAlert("Please select at least one set.");
+            closeModal('custom-study-modal');
+            startStudySession('custom', selectedSets, 'study');
+        };
+
+        window.startBrowseSession = (triggerType, cardId) => {
+            startStudySession('set', cardId, 'browse', triggerType);
+        };
+
+        const startStudySession = (type = 'set', targetPath = null, mode = 'study', triggerType = 'set') => {
+            sessionMode = mode;
+            if(type === 'set' && triggerType === 'set') targetPath = targetPath || (currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`);
             
-            if (setMeta[oldFullPath]) {
-                setMeta[newFullPath] = setMeta[oldFullPath];
-                delete setMeta[oldFullPath];
+            let activeDeck = [];
+            
+            if (mode === 'browse' && triggerType === 'card') {
+                let clickedCard = deck.find(c => c.id === targetPath);
+                if(clickedCard) {
+                    activeDeck = deck.filter(c => c.category === clickedCard.category);
+                    currentCardIndex = activeDeck.findIndex(c => c.id === clickedCard.id);
+                } else return;
+                activeStudyTarget = { type: 'set', path: clickedCard.category };
+            } else {
+                if (type === 'all') activeDeck = deck;
+                else if (type === 'folder') activeDeck = getCardsInFolderTree(targetPath);
+                else if (type === 'custom') activeDeck = deck.filter(c => targetPath.includes(c.category));
+                else activeDeck = deck.filter(c => c.category === targetPath);
+                activeStudyTarget = { type, path: targetPath };
+                currentCardIndex = 0;
             }
 
-            saveMetadataToCloud();
-            closeModal('move-modal');
-            currentPath = dest; 
-            switchView('folders'); 
+            if (activeDeck.length === 0) return showAlert("There are no cards here.");
+
+            if (mode === 'study') {
+                document.getElementById('study-stats-header').classList.remove('hidden');
+                document.getElementById('browse-stats-header').classList.add('hidden');
+                document.getElementById('grading-buttons').classList.remove('hidden');
+                document.getElementById('browse-controls').classList.add('hidden');
+                
+                let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
+                if (dueCards.length === 0) return showAlert("You're all caught up! No cards due right now.");
+                
+                document.getElementById('study-back-text').innerText = type === 'custom' ? 'End Custom Study' : 'End Session';
+                switchView('study');
+                pickNextCard();
+            } else {
+                // BROWSE MODE
+                document.getElementById('study-stats-header').classList.add('hidden');
+                document.getElementById('browse-stats-header').classList.remove('hidden');
+                document.getElementById('grading-buttons').classList.add('hidden');
+                document.getElementById('browse-controls').classList.remove('hidden');
+                document.getElementById('study-back-text').innerText = 'Back to Set';
+                
+                browseCardsList = activeDeck;
+                document.getElementById('browse-total-num').innerText = browseCardsList.length;
+                switchView('study');
+                renderStudyCard(browseCardsList[currentCardIndex]);
+            }
         };
+
+        const pickNextCard = () => {
+            let activeDeck = [];
+            if (activeStudyTarget.type === 'all') activeDeck = deck;
+            else if (activeStudyTarget.type === 'folder') activeDeck = getCardsInFolderTree(activeStudyTarget.path);
+            else if (activeStudyTarget.type === 'custom') activeDeck = deck.filter(c => activeStudyTarget.path.includes(c.category));
+            else activeDeck = deck.filter(c => c.category === activeStudyTarget.path);
+
+            let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
+
+            if (dueCards.length === 0) {
+                showAlert("Session complete! You're caught up.");
+                goBackFromStudy(); return;
+            }
+
+            document.getElementById('count-due').innerText = dueCards.length;
+            document.getElementById('count-new').innerText = dueCards.filter(c => c.reps === 0).length;
+
+            dueCards.sort(() => Math.random() - 0.5); 
+            const currentCard = dueCards[0];
+            currentCardIndex = deck.findIndex(c => c.id === currentCard.id);
+            renderStudyCard(currentCard);
+        };
+
+        const renderStudyCard = (card) => {
+            document.getElementById('flashcard-inner').classList.remove('flipped');
+            if(sessionMode === 'study') document.getElementById('grading-buttons').classList.add('hidden');
+            
+            if(sessionMode === 'browse') {
+                document.getElementById('browse-current-num').innerText = currentCardIndex + 1;
+            }
+
+            const frontEl = document.getElementById('flashcard-front');
+            const backEl = document.getElementById('flashcard-back');
+            const footFrontEl = document.getElementById('flashcard-footnote-front');
+            const footBackEl = document.getElementById('flashcard-footnote');
+            
+            footFrontEl.classList.add('hidden');
+            footBackEl.classList.add('hidden');
+
+            if (card.type === 'occlusion') {
+                let imgHtml = `<div class="relative inline-block max-w-full"><img src="${card.imageFront}" class="max-h-64 rounded-lg">`;
+                let frontMasks = card.masks.map((m, i) => {
+                    let isTarget = (i === card.targetIndex);
+                    return `<div class="occlusion-mask ${isTarget ? 'target-mask' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;">
+                                ${isTarget ? '<div class="absolute inset-0 flex items-center justify-center text-white/90 font-bold">?</div>' : ''}
+                            </div>`;
+                }).join('');
+                frontEl.innerHTML = `<div class="text-sm font-bold text-amber-500 mb-2 uppercase tracking-wide">Identify the highlighted area</div>` + imgHtml + frontMasks + `</div>`;
+
+                let backMasks = card.masks.map((m, i) => `<div class="occlusion-mask ${i === card.targetIndex ? 'revealed' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;"></div>`).join('');
+                backEl.innerHTML = imgHtml + backMasks + `</div>`;
+
+            } else {
+                let fHtml = card.front || '';
+                if (card.imageFront) fHtml += `<br><img src="${card.imageFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
+                if (card.drawingFront) fHtml += `<br><img src="${card.drawingFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
+                frontEl.innerHTML = fHtml;
+
+                let bHtml = card.back || '';
+                if (card.imageBack) bHtml += `<br><img src="${card.imageBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
+                if (card.drawingBack) bHtml += `<br><img src="${card.drawingBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
+                backEl.innerHTML = bHtml;
+
+                if (card.footnoteFront) {
+                    footFrontEl.innerText = card.footnoteFront;
+                    footFrontEl.classList.remove('hidden');
+                }
+                
+                let backFootnote = card.footnoteBack || card.footnote;
+                if (backFootnote) {
+                    footBackEl.innerText = backFootnote;
+                    footBackEl.classList.remove('hidden');
+                }
+            }
+        };
+
+        const flipCard = () => {
+            const inner = document.getElementById('flashcard-inner');
+            if(sessionMode === 'study') {
+                inner.classList.add('flipped');
+                document.getElementById('grading-buttons').classList.remove('hidden');
+            } else {
+                inner.classList.toggle('flipped');
+            }
+        };
+
+        const rateCard = (quality) => {
+            let card = deck[currentCardIndex];
+            if (quality < 3) { card.reps = 0; card.interval = 1; } 
+            else {
+                if (card.reps === 0) card.interval = 1; else if (card.reps === 1) card.interval = 6; else card.interval = Math.round(card.interval * card.ease);
+                card.reps += 1;
+            }
+            card.ease = card.ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+            if (card.ease < 1.3) card.ease = 1.3;
+            const DAY_MS = 24 * 60 * 60 * 1000;
+            const jitter = Math.random() * (0.1 * DAY_MS);
+            card.nextReview = Date.now() + (card.interval * DAY_MS) + jitter;
+            
+            saveCardToCloud(card); pickNextCard();
+        };
+
+        window.navigateBrowse = (direction) => {
+            currentCardIndex += direction;
+            if (currentCardIndex < 0) currentCardIndex = browseCardsList.length - 1;
+            if (currentCardIndex >= browseCardsList.length) currentCardIndex = 0;
+            renderStudyCard(browseCardsList[currentCardIndex]);
+        };
+
+        const goBackFromStudy = () => {
+            if (activeStudyTarget.type === 'set' && selectedSet) openSetDetail(selectedSet);
+            else switchView('folders'); 
+        };
+
+        const readCardAloud = (side) => {
+            if (!window.speechSynthesis) return showAlert("Text-to-speech not supported.");
+            let card = sessionMode === 'study' ? deck[currentCardIndex] : browseCardsList[currentCardIndex];
+            if(card.type === 'occlusion') return showAlert("No text to read on diagram cards.");
+            let text = side === 'front' ? card.front : card.back;
+            let stripped = text.replace(/<[^>]*>?/gm, ''); 
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance(stripped));
+        };
+
+        const editCurrentSet = () => openEditItemModal('set', selectedSet, currentPath);
+        
+        const deleteCurrentSet = () => softDeleteSet(selectedSet, currentPath);
 
         const softDeleteSet = (setName, parentPath) => {
             if (!confirm(`Move set '${setName}' to the Recycle Bin?`)) return;
@@ -1087,10 +1340,8 @@
         const renderRecycleBin = () => {
             const listEl = document.getElementById('recycle-bin-list');
             if (trash.length === 0) {
-                listEl.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed font-medium text-sm">Recycle Bin is empty.</div>`;
-                return;
+                listEl.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed font-medium text-sm">Recycle Bin is empty.</div>`; return;
             }
-            
             listEl.innerHTML = trash.map(item => {
                 let icon = item.type === 'set' ? 'fa-layer-group text-indigo-500' : 'fa-note-sticky text-slate-500';
                 let details = item.type === 'set' ? `${item.cards.length} Cards` : (item.data.front.replace(/<[^>]*>?/gm, '').substring(0, 40) + '...');
@@ -1112,31 +1363,18 @@
         };
 
         const restoreItem = (trashId) => {
-            let item = trash.find(t => t.id === trashId);
-            if(!item) return;
-            
+            let item = trash.find(t => t.id === trashId); if(!item) return;
             deleteTrashFromCloud(trashId);
-            
             if (item.type === 'set') {
                 if(!folders[item.parentPath]) folders[item.parentPath] = [];
                 if(!folders[item.parentPath].includes(item.name)) folders[item.parentPath].push(item.name);
                 if(item.meta) setMeta[item.fullPath] = item.meta;
-                saveMetadataToCloud();
-                item.cards.forEach(c => saveCardToCloud(c));
-            } else if (item.type === 'card') {
-                saveCardToCloud(item.data);
-            }
+                saveMetadataToCloud(); item.cards.forEach(c => saveCardToCloud(c));
+            } else if (item.type === 'card') { saveCardToCloud(item.data); }
         };
 
-        const hardDeleteItem = (trashId) => {
-            if(confirm("Permanently delete this item? This cannot be undone.")) deleteTrashFromCloud(trashId);
-        };
-
-        const emptyRecycleBin = () => {
-            if(confirm("Permanently delete ALL items in the Recycle Bin?")) {
-                trash.forEach(t => deleteTrashFromCloud(t.id));
-            }
-        };
+        const hardDeleteItem = (trashId) => { if(confirm("Permanently delete this item? This cannot be undone.")) deleteTrashFromCloud(trashId); };
+        const emptyRecycleBin = () => { if(confirm("Permanently delete ALL items in the Recycle Bin?")) { trash.forEach(t => deleteTrashFromCloud(t.id)); } };
 
         const compressImage = (file, callback) => {
             const reader = new FileReader();
@@ -1146,13 +1384,9 @@
                     const canvas = document.createElement('canvas');
                     let w = img.width, h = img.height;
                     const maxW = 800, maxH = 800;
-                    if (w > maxW || h > maxH) {
-                        const ratio = Math.min(maxW/w, maxH/h);
-                        w *= ratio; h *= ratio;
-                    }
+                    if (w > maxW || h > maxH) { const ratio = Math.min(maxW/w, maxH/h); w *= ratio; h *= ratio; }
                     canvas.width = w; canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
                     callback(canvas.toDataURL('image/jpeg', 0.6)); 
                 };
                 img.src = e.target.result;
@@ -1164,16 +1398,14 @@
             if (input.files && input.files[0]) {
                 compressImage(input.files[0], (base64) => {
                     const previewDiv = document.getElementById(previewId);
-                    previewDiv.querySelector('img').src = base64;
-                    previewDiv.classList.remove('hidden');
+                    previewDiv.querySelector('img').src = base64; previewDiv.classList.remove('hidden');
                 });
             }
         };
 
         const clearUploadedImage = (previewId) => {
             const previewDiv = document.getElementById(previewId);
-            previewDiv.querySelector('img').src = '';
-            previewDiv.classList.add('hidden');
+            previewDiv.querySelector('img').src = ''; previewDiv.classList.add('hidden');
         };
 
         const formatText = (command, value = null) => { document.execCommand(command, false, value); };
@@ -1181,173 +1413,179 @@
         const openCardEditor = () => {
             editingCardId = null;
             document.getElementById('editor-title').innerText = "Add New Card";
-            document.getElementById('editor-front').innerHTML = '';
-            document.getElementById('editor-back').innerHTML = '';
-            document.getElementById('editor-draw-front').value = '';
-            document.getElementById('editor-draw-back').value = '';
-            document.getElementById('editor-footnote').value = '';
-            
-            clearUploadedImage('preview-front');
-            clearUploadedImage('preview-back');
-            
-            document.getElementById('editor-modal').classList.remove('hidden');
-            document.getElementById('editor-front').focus();
+            document.getElementById('editor-front').innerHTML = ''; document.getElementById('editor-back').innerHTML = '';
+            document.getElementById('editor-draw-front').value = ''; document.getElementById('editor-draw-back').value = '';
+            document.getElementById('editor-footnote-front').value = ''; document.getElementById('editor-footnote').value = '';
+            clearUploadedImage('preview-front'); clearUploadedImage('preview-back');
+            document.getElementById('editor-modal').classList.remove('hidden'); document.getElementById('editor-front').focus();
         };
 
         const openEditCard = (id) => {
-            const card = deck.find(c => c.id === id);
-            if (!card) return;
+            const card = deck.find(c => c.id === id); if (!card) return;
             if (card.type === 'occlusion') return showAlert("Diagram cards cannot be edited yet. Please delete and recreate.");
-            
             editingCardId = id;
             document.getElementById('editor-title').innerText = "Edit Card";
-            document.getElementById('editor-front').innerHTML = card.front;
-            document.getElementById('editor-back').innerHTML = card.back;
-            document.getElementById('editor-draw-front').value = card.drawingFront || '';
-            document.getElementById('editor-draw-back').value = card.drawingBack || '';
-            document.getElementById('editor-footnote').value = card.footnote || '';
+            document.getElementById('editor-front').innerHTML = card.front; document.getElementById('editor-back').innerHTML = card.back;
+            document.getElementById('editor-draw-front').value = card.drawingFront || ''; document.getElementById('editor-draw-back').value = card.drawingBack || '';
+            document.getElementById('editor-footnote-front').value = card.footnoteFront || '';
+            document.getElementById('editor-footnote').value = card.footnoteBack || card.footnote || '';
             
-            if(card.imageFront) {
-                document.getElementById('preview-front').querySelector('img').src = card.imageFront;
-                document.getElementById('preview-front').classList.remove('hidden');
-            } else clearUploadedImage('preview-front');
-            
-            if(card.imageBack) {
-                document.getElementById('preview-back').querySelector('img').src = card.imageBack;
-                document.getElementById('preview-back').classList.remove('hidden');
-            } else clearUploadedImage('preview-back');
-
+            if(card.imageFront) { document.getElementById('preview-front').querySelector('img').src = card.imageFront; document.getElementById('preview-front').classList.remove('hidden'); } else clearUploadedImage('preview-front');
+            if(card.imageBack) { document.getElementById('preview-back').querySelector('img').src = card.imageBack; document.getElementById('preview-back').classList.remove('hidden'); } else clearUploadedImage('preview-back');
             document.getElementById('editor-modal').classList.remove('hidden');
         };
 
         const saveCard = () => {
-            const front = document.getElementById('editor-front').innerHTML.trim();
-            const back = document.getElementById('editor-back').innerHTML.trim();
-            const drawFront = document.getElementById('editor-draw-front').value;
-            const drawBack = document.getElementById('editor-draw-back').value;
-            const footnote = document.getElementById('editor-footnote').value.trim();
-            
+            const front = document.getElementById('editor-front').innerHTML.trim(); const back = document.getElementById('editor-back').innerHTML.trim();
+            const drawFront = document.getElementById('editor-draw-front').value; const drawBack = document.getElementById('editor-draw-back').value;
+            const footnoteFront = document.getElementById('editor-footnote-front').value.trim();
+            const footnoteBack = document.getElementById('editor-footnote').value.trim();
             let imgFront = document.getElementById('preview-front').classList.contains('hidden') ? '' : document.getElementById('preview-front').querySelector('img').src;
             let imgBack = document.getElementById('preview-back').classList.contains('hidden') ? '' : document.getElementById('preview-back').querySelector('img').src;
 
             if (!front && !imgFront && !drawFront) return showAlert("Front side cannot be totally empty.");
-            
             let fullSetName = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
             
             let cardObj;
             if (editingCardId) {
                 cardObj = deck.find(c => c.id === editingCardId);
-                Object.assign(cardObj, { front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnote });
+                Object.assign(cardObj, { front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack });
             } else {
-                cardObj = {
-                    id: generateId(), type: 'standard', category: fullSetName, front, back,
-                    imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack,
-                    footnote, reps: 0, interval: 1, ease: 2.5, nextReview: 0
-                };
+                cardObj = { id: generateId(), type: 'standard', category: fullSetName, front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack, reps: 0, interval: 1, ease: 2.5, nextReview: 0 };
             }
-            saveCardToCloud(cardObj);
-            closeModal('editor-modal');
+            saveCardToCloud(cardObj); closeModal('editor-modal');
         };
 
         const initCanvas = () => {
-            canvas = document.getElementById('draw-canvas');
-            if(!canvas) return;
+            canvas = document.getElementById('draw-canvas'); if(!canvas) return;
             ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const startPos = (e) => { isDrawing = true; draw(e); };
+            const getCanvasPos = (e) => {
+                let rect = canvas.getBoundingClientRect();
+                return {
+                    x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left,
+                    y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top
+                };
+            };
+
+            const startPos = (e) => { 
+                if(drawTool === 'text') {
+                    let text = document.getElementById('draw-text-val').value;
+                    if(text) {
+                        let pos = getCanvasPos(e);
+                        let size = parseInt(document.getElementById('brush-size').value) * 4 + 14;
+                        ctx.font = `bold ${size}px Inter, sans-serif`;
+                        ctx.fillStyle = brushColor;
+                        ctx.fillText(text, pos.x, pos.y);
+                    }
+                    return;
+                }
+                isDrawing = true; 
+                draw(e); 
+            };
             const endPos = () => { isDrawing = false; ctx.beginPath(); };
             const draw = (e) => {
-                if (!isDrawing) return;
+                if (!isDrawing || drawTool !== 'brush') return;
                 e.preventDefault();
-                let rect = canvas.getBoundingClientRect();
-                let x = (e.clientX || e.touches?.[0].clientX) - rect.left;
-                let y = (e.clientY || e.touches?.[0].clientY) - rect.top;
-
-                ctx.lineWidth = document.getElementById('brush-size').value;
-                ctx.lineCap = 'round';
-                ctx.strokeStyle = brushColor;
-                ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
+                let pos = getCanvasPos(e);
+                ctx.lineWidth = document.getElementById('brush-size').value; ctx.lineCap = 'round'; ctx.strokeStyle = brushColor;
+                ctx.lineTo(pos.x, pos.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
             };
 
             canvas.addEventListener('mousedown', startPos); canvas.addEventListener('mouseup', endPos); canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('touchstart', startPos, {passive: false}); canvas.addEventListener('touchend', endPos); canvas.addEventListener('touchmove', draw, {passive: false});
         };
 
+        window.setDrawTool = (tool) => {
+            drawTool = tool;
+            document.getElementById('tool-btn-brush').classList.remove('tool-active', 'bg-slate-100');
+            document.getElementById('tool-btn-text').classList.remove('tool-active', 'bg-slate-100');
+            document.getElementById(`tool-btn-${tool}`).classList.add('tool-active');
+            
+            const textInput = document.getElementById('draw-text-val');
+            if(tool === 'text') {
+                textInput.classList.remove('hidden'); textInput.focus();
+                canvas.style.cursor = 'text';
+            } else {
+                textInput.classList.add('hidden');
+                canvas.style.cursor = 'crosshair';
+            }
+        };
+
+        window.drawInsertImage = (input) => {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.9;
+                        let w = img.width * scale; let h = img.height * scale;
+                        let x = (canvas.width - w) / 2; let y = (canvas.height - h) / 2;
+                        ctx.drawImage(img, x, y, w, h);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+                input.value = ""; // Reset input
+            }
+        };
+
         const openDrawing = (target) => {
             drawingTarget = target;
-            ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             let existing = document.getElementById(`editor-draw-${target}`).value;
-            if (existing) {
-                let img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = existing;
-            }
+            if (existing) { let img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = existing; }
+            setDrawTool('brush');
             document.getElementById('drawing-modal').classList.remove('hidden');
         };
 
         const setBrush = (c) => brushColor = c;
-        const clearCanvas = () => { ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, canvas.width, canvas.height); };
+        const clearCanvas = () => { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); };
         const saveDrawing = () => { document.getElementById(`editor-draw-${drawingTarget}`).value = canvas.toDataURL(); closeModal('drawing-modal'); };
 
         const openDiagramMode = () => {
             diagramBase64 = ""; occlusionMasks = [];
-            document.getElementById('diagram-empty-state').classList.remove('hidden');
-            document.getElementById('diagram-container').classList.add('hidden');
-            document.getElementById('diagram-masks-layer').innerHTML = '';
-            document.getElementById('mask-count').innerText = '0';
+            document.getElementById('diagram-empty-state').classList.remove('hidden'); document.getElementById('diagram-container').classList.add('hidden');
+            document.getElementById('diagram-masks-layer').innerHTML = ''; document.getElementById('mask-count').innerText = '0';
             document.getElementById('diagram-modal').classList.remove('hidden');
         };
 
         const handleDiagramUpload = (input) => {
             if (input.files && input.files[0]) {
                 compressImage(input.files[0], (base64) => {
-                    diagramBase64 = base64;
-                    document.getElementById('diagram-image').src = base64;
-                    document.getElementById('diagram-empty-state').classList.add('hidden');
-                    document.getElementById('diagram-container').classList.remove('hidden');
+                    diagramBase64 = base64; document.getElementById('diagram-image').src = base64;
+                    document.getElementById('diagram-empty-state').classList.add('hidden'); document.getElementById('diagram-container').classList.remove('hidden');
                     occlusionMasks = []; renderMasks();
                 });
             }
         };
 
         const getPos = (e) => {
-            const container = document.getElementById('diagram-container');
-            const rect = container.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const container = document.getElementById('diagram-container'); const rect = container.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             return { x: ((clientX - rect.left) / rect.width) * 100, y: ((clientY - rect.top) / rect.height) * 100 };
         };
 
         const startMaskDraw = (e) => {
-            if(!diagramBase64) return;
-            e.preventDefault(); isMaskDrawing = true;
+            if(!diagramBase64) return; e.preventDefault(); isMaskDrawing = true;
             const pos = getPos(e); maskStartX = pos.x; maskStartY = pos.y;
             const drawBox = document.getElementById('current-draw-mask');
-            drawBox.style.left = maskStartX + '%'; drawBox.style.top = maskStartY + '%';
-            drawBox.style.width = '0%'; drawBox.style.height = '0%'; drawBox.classList.remove('hidden');
+            drawBox.style.left = maskStartX + '%'; drawBox.style.top = maskStartY + '%'; drawBox.style.width = '0%'; drawBox.style.height = '0%'; drawBox.classList.remove('hidden');
         };
 
         const drawMask = (e) => {
-            if (!isMaskDrawing) return;
-            e.preventDefault();
-            const pos = getPos(e);
-            const drawBox = document.getElementById('current-draw-mask');
-            drawBox.style.left = Math.min(maskStartX, pos.x) + '%';
-            drawBox.style.top = Math.min(maskStartY, pos.y) + '%';
-            drawBox.style.width = Math.abs(pos.x - maskStartX) + '%';
-            drawBox.style.height = Math.abs(pos.y - maskStartY) + '%';
+            if (!isMaskDrawing) return; e.preventDefault();
+            const pos = getPos(e); const drawBox = document.getElementById('current-draw-mask');
+            drawBox.style.left = Math.min(maskStartX, pos.x) + '%'; drawBox.style.top = Math.min(maskStartY, pos.y) + '%';
+            drawBox.style.width = Math.abs(pos.x - maskStartX) + '%'; drawBox.style.height = Math.abs(pos.y - maskStartY) + '%';
         };
 
         const endMaskDraw = (e) => {
-            if (!isMaskDrawing) return;
-            isMaskDrawing = false;
-            const drawBox = document.getElementById('current-draw-mask');
-            drawBox.classList.add('hidden');
+            if (!isMaskDrawing) return; isMaskDrawing = false;
+            const drawBox = document.getElementById('current-draw-mask'); drawBox.classList.add('hidden');
             if(parseFloat(drawBox.style.width) > 2 && parseFloat(drawBox.style.height) > 2) {
-                occlusionMasks.push({
-                    left: parseFloat(drawBox.style.left), top: parseFloat(drawBox.style.top),
-                    width: parseFloat(drawBox.style.width), height: parseFloat(drawBox.style.height)
-                });
+                occlusionMasks.push({ left: parseFloat(drawBox.style.left), top: parseFloat(drawBox.style.top), width: parseFloat(drawBox.style.width), height: parseFloat(drawBox.style.height) });
                 renderMasks();
             }
         };
@@ -1367,183 +1605,17 @@
         const generateDiagramCards = () => {
             if(!diagramBase64) return showAlert("Please upload a diagram first.");
             if(occlusionMasks.length === 0) return showAlert("Please draw at least one mask over the image.");
-
             let fullSetName = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
             occlusionMasks.forEach((mask, index) => {
-                saveCardToCloud({
-                    id: generateId(), type: 'occlusion', category: fullSetName,
-                    imageFront: diagramBase64, masks: occlusionMasks, targetIndex: index,
-                    reps: 0, interval: 1, ease: 2.5, nextReview: 0
-                });
+                saveCardToCloud({ id: generateId(), type: 'occlusion', category: fullSetName, imageFront: diagramBase64, masks: occlusionMasks, targetIndex: index, reps: 0, interval: 1, ease: 2.5, nextReview: 0 });
             });
-
-            closeModal('diagram-modal');
-            showAlert(`Generated ${occlusionMasks.length} diagram cards!`);
-        };
-
-        const openCustomStudyModal = () => {
-            let html = ''; let setsFound = false;
-            for (const [folderPath, sets] of Object.entries(folders)) {
-                if (sets.length === 0) continue;
-                setsFound = true;
-                let displayPath = folderPath === '_root' ? 'Main Page' : folderPath.replace(/\//g, ' > ');
-                html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-4 mb-2 px-1">${displayPath}</div>`;
-                sets.forEach(s => {
-                    let fullPath = folderPath === '_root' ? s : `${folderPath}/${s}`;
-                    html += `
-                    <label class="flex items-center gap-3 p-3 mb-1 rounded-xl border border-slate-100 bg-slate-50 hover:bg-amber-50 cursor-pointer group transition-colors">
-                        <input type="checkbox" value="${fullPath}" class="custom-study-checkbox w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer">
-                        <span class="text-sm font-bold text-slate-700 group-hover:text-amber-700 transition-colors">${s}</span>
-                    </label>`;
-                });
-            }
-            if (!setsFound) html = '<div class="text-sm text-slate-500 text-center py-6">No sets available.</div>';
-            document.getElementById('custom-study-list').innerHTML = html;
-            document.getElementById('custom-study-modal').classList.remove('hidden');
-        };
-
-        const startCustomStudy = () => {
-            const checkboxes = document.querySelectorAll('.custom-study-checkbox:checked');
-            const selectedSets = Array.from(checkboxes).map(cb => cb.value);
-            if (selectedSets.length === 0) return showAlert("Please select at least one set.");
-            closeModal('custom-study-modal');
-            startStudySession('custom', selectedSets);
-        };
-
-        const startStudySession = (type = 'set', targetPath = null) => {
-            if(type === 'set') targetPath = targetPath || (currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`);
-            
-            let activeDeck = [];
-            if (type === 'all') activeDeck = deck;
-            else if (type === 'folder') activeDeck = getCardsInFolderTree(targetPath);
-            else if (type === 'custom') activeDeck = deck.filter(c => targetPath.includes(c.category));
-            else activeDeck = deck.filter(c => c.category === targetPath);
-
-            activeStudyTarget = { type, path: targetPath };
-            
-            if (activeDeck.filter(c => c.nextReview <= Date.now()).length === 0) return showAlert("You're all caught up! No cards due right now.");
-
-            let backText = type === 'all' ? 'Back to Folders' : type === 'folder' ? 'Back to Folder' : type === 'custom' ? 'End Custom Study' : 'Back to Set';
-            document.getElementById('study-back-text').innerText = backText;
-
-            switchView('study');
-            pickNextCard();
-        };
-
-        const pickNextCard = () => {
-            let activeDeck = [];
-            if (activeStudyTarget.type === 'all') activeDeck = deck;
-            else if (activeStudyTarget.type === 'folder') activeDeck = getCardsInFolderTree(activeStudyTarget.path);
-            else if (activeStudyTarget.type === 'custom') activeDeck = deck.filter(c => activeStudyTarget.path.includes(c.category));
-            else activeDeck = deck.filter(c => c.category === activeStudyTarget.path);
-
-            let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
-
-            if (dueCards.length === 0) {
-                showAlert("Session complete! You're caught up.");
-                goBackFromStudy();
-                return;
-            }
-
-            document.getElementById('count-due').innerText = dueCards.length;
-            document.getElementById('count-new').innerText = dueCards.filter(c => c.reps === 0).length;
-
-            dueCards.sort(() => Math.random() - 0.5); 
-            const currentCard = dueCards[0];
-            currentCardIndex = deck.findIndex(c => c.id === currentCard.id);
-            
-            renderStudyCard();
-        };
-
-        const renderStudyCard = () => {
-            let card = deck[currentCardIndex];
-            document.getElementById('flashcard-inner').classList.remove('flipped');
-            document.getElementById('grading-buttons').classList.add('hidden');
-            
-            const frontEl = document.getElementById('flashcard-front');
-            const backEl = document.getElementById('flashcard-back');
-            const footEl = document.getElementById('flashcard-footnote');
-            footEl.classList.add('hidden');
-
-            if (card.type === 'occlusion') {
-                let imgHtml = `<div class="relative inline-block max-w-full"><img src="${card.imageFront}" class="max-h-64 rounded-lg">`;
-                let frontMasks = card.masks.map((m, i) => {
-                    let isTarget = (i === card.targetIndex);
-                    return `<div class="occlusion-mask ${isTarget ? 'target-mask' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;">
-                                ${isTarget ? '<div class="absolute inset-0 flex items-center justify-center text-white/90 font-bold">?</div>' : ''}
-                            </div>`;
-                }).join('');
-                frontEl.innerHTML = `<div class="text-sm font-bold text-amber-500 mb-2 uppercase tracking-wide">Identify the highlighted area</div>` + imgHtml + frontMasks + `</div>`;
-
-                let backMasks = card.masks.map((m, i) => `<div class="occlusion-mask ${i === card.targetIndex ? 'revealed' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;"></div>`).join('');
-                backEl.innerHTML = imgHtml + backMasks + `</div>`;
-
-            } else {
-                let fHtml = card.front || '';
-                if (card.imageFront) fHtml += `<br><img src="${card.imageFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
-                if (card.drawingFront) fHtml += `<br><img src="${card.drawingFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
-                frontEl.innerHTML = fHtml;
-
-                let bHtml = card.back || '';
-                if (card.imageBack) bHtml += `<br><img src="${card.imageBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
-                if (card.drawingBack) bHtml += `<br><img src="${card.drawingBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
-                backEl.innerHTML = bHtml;
-
-                if (card.footnote) {
-                    footEl.innerText = card.footnote;
-                    footEl.classList.remove('hidden');
-                }
-            }
-        };
-
-        const flipCard = () => {
-            document.getElementById('flashcard-inner').classList.add('flipped');
-            document.getElementById('grading-buttons').classList.remove('hidden');
-        };
-
-        const rateCard = (quality) => {
-            let card = deck[currentCardIndex];
-            if (quality < 3) {
-                card.reps = 0; card.interval = 1;
-            } else {
-                if (card.reps === 0) card.interval = 1;
-                else if (card.reps === 1) card.interval = 6;
-                else card.interval = Math.round(card.interval * card.ease);
-                card.reps += 1;
-            }
-            
-            card.ease = card.ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-            if (card.ease < 1.3) card.ease = 1.3;
-            
-            const DAY_MS = 24 * 60 * 60 * 1000;
-            const jitter = Math.random() * (0.1 * DAY_MS);
-            card.nextReview = Date.now() + (card.interval * DAY_MS) + jitter;
-            
-            saveCardToCloud(card);
-            pickNextCard();
-        };
-
-        const goBackFromStudy = () => {
-            if (activeStudyTarget.type === 'set') openSetDetail(selectedSet);
-            else switchView('folders'); 
-        };
-
-        const readCardAloud = (side) => {
-            if (!window.speechSynthesis) return showAlert("Text-to-speech not supported.");
-            let card = deck[currentCardIndex];
-            if(card.type === 'occlusion') return showAlert("No text to read on diagram cards.");
-            let text = side === 'front' ? card.front : card.back;
-            let stripped = text.replace(/<[^>]*>?/gm, ''); 
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(stripped));
+            closeModal('diagram-modal'); showAlert(`Generated ${occlusionMasks.length} diagram cards!`);
         };
 
         const exportDeck = () => {
             const data = JSON.stringify({deck, folders, folderMeta, setMeta}, null, 2);
             navigator.clipboard.writeText(data).then(() => showAlert("Backup copied to clipboard!"))
-                .catch(() => {
-                    document.getElementById('import-json-text').value = data;
-                    showAlert("Copy failed. JSON displayed in text box.");
-                });
+                .catch(() => { document.getElementById('import-json-text').value = data; showAlert("Copy failed. JSON displayed in text box."); });
         };
 
         const importDeck = () => {
@@ -1561,8 +1633,8 @@
                 }
                 if (parsed.folderMeta) Object.assign(folderMeta, parsed.folderMeta);
                 if (parsed.setMeta) Object.assign(setMeta, parsed.setMeta);
-                
                 saveMetadataToCloud();
+                
                 let addedCount = 0;
                 importDeck.forEach(c => {
                     let found = false;
@@ -1571,18 +1643,65 @@
                         if (sets.includes(shortName)) { found = true; break; }
                     }
                     if (!found) folders['_root'].push(c.category);
-                    
                     if(!c.id) c.id = generateId();
-                    saveCardToCloud(c);
-                    addedCount++;
+                    saveCardToCloud(c); addedCount++;
                 });
-                
-                document.getElementById('import-json-text').value = '';
-                showAlert(`Successfully imported ${addedCount} cards to Cloud!`);
+                document.getElementById('import-json-text').value = ''; showAlert(`Successfully imported ${addedCount} cards to Cloud!`);
             } catch (e) { showAlert("Invalid JSON format."); }
         };
 
-        // Attach UI bindings to window to bridge module scope
+        const toggleCalendar = () => {
+            const cal = document.getElementById('calendar-sidebar');
+            cal.classList.toggle('hidden');
+            isCalendarOpen = !cal.classList.contains('hidden');
+            if(isCalendarOpen) renderCalendar();
+        };
+
+        const renderCalendar = () => {
+            const listEl = document.getElementById('calendar-list');
+            const now = new Date();
+            now.setHours(0,0,0,0);
+            
+            let schedule = {};
+            
+            deck.forEach(c => {
+                let due = new Date(c.nextReview);
+                due.setHours(0,0,0,0);
+                
+                let diffDays = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                
+                let label = "";
+                if (diffDays < 0) label = "Overdue";
+                else if (diffDays === 0) label = "Today";
+                else if (diffDays === 1) label = "Tomorrow";
+                else if (diffDays <= 7) label = due.toLocaleDateString('en-US', {weekday: 'long'});
+                else label = due.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+
+                let sortKey = diffDays < 0 ? -1 : diffDays;
+                
+                if (!schedule[sortKey]) schedule[sortKey] = { label, count: 0 };
+                schedule[sortKey].count++;
+            });
+
+            const sortedKeys = Object.keys(schedule).map(Number).sort((a, b) => a - b);
+            
+            if(sortedKeys.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-slate-400 text-sm mt-10"><i class="fa-solid fa-mug-hot text-2xl mb-2 text-slate-300"></i><br>No upcoming reviews scheduled!</div>';
+                return;
+            }
+
+            listEl.innerHTML = sortedKeys.map(k => {
+                let item = schedule[k];
+                let colorClass = k <= 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
+                let icon = k <= 0 ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '<i class="fa-regular fa-calendar"></i>';
+                return `
+                <div class="flex justify-between items-center p-3 rounded-xl border ${colorClass} shadow-sm">
+                    <div class="font-bold text-sm flex items-center gap-2">${icon} ${item.label}</div>
+                    <div class="font-bold text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-200/50 shadow-sm">${item.count} Cards</div>
+                </div>`;
+            }).join('');
+        };
+
         Object.assign(window, {
             switchTab, openNewFolderModal, openNewSetModal, startStudySession, openCustomStudyModal,
             openFolder, navigateUp, openEditItemModal, softDeleteSet, openCardEditor, openDiagramMode,
@@ -1591,10 +1710,11 @@
             openDrawing, setBrush, clearCanvas, saveDrawing, handleDiagramUpload, startMaskDraw, drawMask,
             endMaskDraw, clearDiagramMasks, undoLastMask, generateDiagramCards, closeModal, createFolder,
             createSet, selectThemeColor, saveEditedItem, openSetDetail, softDeleteCard, openEditCard, saveCard,
-            openMoveModal, startCustomStudy
+            openMoveModal, startCustomStudy, drawInsertImage, setDrawTool, navigateBrowse, startBrowseSession,
+            editCurrentSet, deleteCurrentSet, selectIcon, toggleCalendar
         });
 
-        // Initialize App
+        // Fire it up
         initCloud();
     </script>
 </body>
