@@ -509,13 +509,27 @@
             db = getFirestore(app);
 
             try {
-                if (initialToken) await signInWithCustomToken(auth, initialToken);
-                else await signInAnonymously(auth);
+                // Fixed authentication flow: Handle missing/invalid initialToken safely
+                if (initialToken) {
+                    try {
+                        await signInWithCustomToken(auth, initialToken);
+                    } catch (tokenError) {
+                        console.warn("Custom token failed, falling back to anonymous:", tokenError);
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                }
                 
                 userId = auth.currentUser?.uid;
-                if (!userId) return;
+                if (!userId) {
+                    console.error("Failed to acquire user ID after authentication.");
+                    document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud-xmark text-rose-500"></i> Disconnected';
+                    return;
+                }
 
                 document.getElementById('cloud-status').classList.remove('hidden');
+                document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud text-emerald-500"></i> Connected';
 
                 // Check for legacy local data to migrate
                 const localDeckRaw = localStorage.getItem('luminaDeck');
