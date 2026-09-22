@@ -90,7 +90,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 1. INITIALIZE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyDqk1ojTgEnzsGKnNFphi-CbMPIww43Ewo",
             authDomain: "lumina-flash-6298f.firebaseapp.com",
@@ -104,7 +103,6 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // --- IMAGE COMPRESSION HELPER ---
         // Prevents Firestore from choking on massive images
         const compressImage = (file, callback) => {
             const reader = new FileReader();
@@ -128,7 +126,6 @@
             reader.readAsDataURL(file);
         };
 
-        // --- AUTH SCREEN ---
         const AuthScreen = () => {
             const [isLogin, setIsLogin] = useState(true);
             const [email, setEmail] = useState('');
@@ -181,8 +178,7 @@
             );
         };
 
-        // --- CARD EDITOR MODAL ---
-        const CardEditorModal = ({ card, setId, onClose, userId }) => {
+        const CardEditorModal = ({ card, setId, onClose, userId, db }) => {
             const frontRef = useRef(null);
             const backRef = useRef(null);
             
@@ -209,7 +205,7 @@
 
             const saveCard = async () => {
                 const finalFront = frontRef.current.innerHTML.trim();
-                if (!finalFront) return alert("Front side cannot be empty.");
+                if (!finalFront && !frontImage) return alert("Front side cannot be empty.");
                 
                 setLoading(true);
                 const cardData = {
@@ -316,7 +312,6 @@
             );
         };
 
-        // --- 3D CARD FACE (Handles Text/Image Layout) ---
         const CardFace = ({ isFront, card }) => {
             const content = isFront ? card.front : card.back;
             const image = isFront ? card.frontImage : card.backImage;
@@ -332,7 +327,7 @@
                         </span>
                     </div>
 
-                    {/* Content Area - Safe Scrolling without Top Clipping */}
+                    {/* Content Area - Grid Center Fixes Image/Text Cutoff Bug */}
                     <div className="flex-1 w-full overflow-y-auto custom-scrollbar relative">
                         <div className="grid place-items-center min-h-full py-4">
                             <div className="flex flex-col items-center gap-6 w-full">
@@ -360,7 +355,6 @@
             );
         };
 
-        // --- BROWSE MODE (No Grading, Just Viewing) ---
         const BrowseView = ({ cards, setName, onBack }) => {
             const [idx, setIdx] = useState(0);
             const [showBack, setShowBack] = useState(false);
@@ -373,7 +367,7 @@
             const prev = () => { setIdx((i) => (i - 1 + cards.length) % cards.length); setShowBack(false); };
 
             return (
-                <div className="flex-1 flex flex-col p-4">
+                <div className="flex-1 flex flex-col p-4 bg-slate-50">
                     <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-slate-100">
                         <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2"><i className="fa-solid fa-arrow-left"></i> Back</button>
                         <h2 className="font-bold text-slate-800 hidden sm:block">Browsing: {setName}</h2>
@@ -397,13 +391,12 @@
             );
         };
 
-        // --- STUDY MODE (SM-2 Algorithm) ---
         const StudyView = ({ cards, setName, onBack, userId, db }) => {
             const dueCards = cards.filter(c => c.nextReview <= Date.now());
             const [showBack, setShowBack] = useState(false);
             
             if(dueCards.length === 0) return (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-slate-50">
                     <div className="text-6xl mb-4">🎉</div>
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">You're all caught up!</h2>
                     <p className="text-slate-500 mb-6">Excellent work. The algorithm will bring cards back when you need them.</p>
@@ -433,7 +426,7 @@
             };
 
             return (
-                <div className="flex-1 flex flex-col p-4">
+                <div className="flex-1 flex flex-col p-4 bg-slate-50">
                     <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-slate-100">
                         <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2"><i className="fa-solid fa-arrow-left"></i> Back</button>
                         <h2 className="font-bold text-slate-800 hidden sm:block">Studying: {setName}</h2>
@@ -458,7 +451,6 @@
             );
         };
 
-        // --- MAIN APP ---
         const App = () => {
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
@@ -468,7 +460,6 @@
             const [showCalendar, setShowCalendar] = useState(false);
             
             // Editor State
-            const [editingCard, setEditingCard] = useState(null);
             const [newCardSetId, setNewCardSetId] = useState(null);
 
             // Data State
@@ -478,6 +469,7 @@
 
             useEffect(() => {
                 const unsub = auth.onAuthStateChanged(u => {
+                    // Only accept real accounts now
                     if (u && !u.isAnonymous) setUser(u);
                     else setUser(null);
                     setLoading(false);
@@ -497,25 +489,34 @@
             if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><i className="fa-solid fa-spinner fa-spin text-4xl text-indigo-500"></i></div>;
             if (!user) return <AuthScreen />;
 
-            // --- DELETION LOGIC (Recursive) ---
+            // --- RECURSIVE DELETE LOGIC ---
             const deleteFolder = async (id) => {
                 if(!confirm("Permanently delete this folder and EVERYTHING inside it?")) return;
                 const userRef = db.collection('users').doc(user.uid);
+                
+                // Delete the folder
                 await userRef.collection('folders').doc(id).delete();
+                
+                // Delete nested sets and cards
                 const childSets = sets.filter(s => s.folderId === id);
                 for (const set of childSets) {
                     await userRef.collection('sets').doc(set.id).delete();
                     const childCards = cards.filter(c => c.setId === set.id);
-                    for (const card of childCards) await userRef.collection('cards').doc(card.id).delete();
+                    for (const card of childCards) {
+                        await userRef.collection('cards').doc(card.id).delete();
+                    }
                 }
             };
 
             const deleteSet = async (id) => {
                 if(!confirm("Permanently delete this set and all its cards?")) return;
                 const userRef = db.collection('users').doc(user.uid);
+                
                 await userRef.collection('sets').doc(id).delete();
                 const childCards = cards.filter(c => c.setId === id);
-                for (const card of childCards) await userRef.collection('cards').doc(card.id).delete();
+                for (const card of childCards) {
+                    await userRef.collection('cards').doc(card.id).delete();
+                }
             };
 
             // --- CREATION LOGIC ---
@@ -559,7 +560,7 @@
             const stats = getCalendarStats();
 
             return (
-                <div className="min-h-screen flex flex-col relative">
+                <div className="min-h-screen flex flex-col relative bg-slate-50">
                     {/* Top Nav */}
                     <header className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shrink-0 z-20">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentFolderId(null)}>
@@ -574,6 +575,45 @@
                             <div className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
                                 <i className="fa-solid fa-cloud-check mr-1"></i> <span className="hidden sm:inline">Synced</span>
                             </div>
+                            <button onClick={async () => {
+                                if(!confirm("Are you sure you want to attempt to rescue old data? This will scan the root database for unassigned folders, sets, and cards, and attach them to your current account.")) return;
+                                
+                                try {
+                                    alert("Starting rescue operation. Please do not close the window.");
+                                    const userRef = db.collection('users').doc(user.uid);
+                                    
+                                    // 1. Rescue Folders
+                                    const oldFolders = await db.collection('folders').get();
+                                    let folderCount = 0;
+                                    for(let doc of oldFolders.docs) {
+                                        await userRef.collection('folders').doc(doc.id).set(doc.data());
+                                        folderCount++;
+                                    }
+
+                                    // 2. Rescue Sets
+                                    const oldSets = await db.collection('sets').get();
+                                    let setCount = 0;
+                                    for(let doc of oldSets.docs) {
+                                        await userRef.collection('sets').doc(doc.id).set(doc.data());
+                                        setCount++;
+                                    }
+
+                                    // 3. Rescue Cards
+                                    const oldCards = await db.collection('cards').get();
+                                    let cardCount = 0;
+                                    for(let doc of oldCards.docs) {
+                                        await userRef.collection('cards').doc(doc.id).set(doc.data());
+                                        cardCount++;
+                                    }
+                                    
+                                    alert(`Rescue Complete!\nMigrated:\n${folderCount} Folders\n${setCount} Sets\n${cardCount} Cards.\n\nPlease refresh the page.`);
+                                } catch (error) {
+                                    console.error("Rescue failed:", error);
+                                    alert("Rescue failed. Check console for details. Error: " + error.message);
+                                }
+                            }} className="bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                                <i className="fa-solid fa-life-ring"></i> Rescue Old Data
+                            </button>
                             <button onClick={()=>{if(confirm("Log out?")) auth.signOut();}} className="text-sm font-bold text-slate-400 hover:text-rose-500">Out</button>
                         </div>
                     </header>
@@ -581,7 +621,10 @@
                     {/* Calendar Sidebar Drawer */}
                     {showCalendar && (
                         <div className="absolute right-0 top-14 bottom-0 w-72 bg-white border-l border-slate-200 shadow-2xl z-10 p-6 flex flex-col animate-[fadeIn_0.2s_ease-out]">
-                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><i className="fa-solid fa-chart-pie text-indigo-500"></i> Review Schedule</h3>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2"><i className="fa-solid fa-chart-pie text-indigo-500"></i> Review Schedule</h3>
+                                <button onClick={()=>setShowCalendar(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-times"></i></button>
+                            </div>
                             <div className="space-y-4">
                                 <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 flex justify-between items-center">
                                     <span className="font-bold text-rose-800">Due Today</span>
@@ -607,7 +650,6 @@
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                             <div className="flex items-center text-sm font-bold text-slate-500 gap-2">
                                 <button onClick={() => setCurrentFolderId(null)} className="hover:text-indigo-600 flex items-center gap-1"><i className="fa-solid fa-home"></i> Home</button>
-                                {/* Breadcrumbs omitted for brevity in full monolithic view, but user can always click Home */}
                             </div>
                             <div className="flex gap-2 w-full sm:w-auto">
                                 <button onClick={createFolder} className="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold hover:border-indigo-300 hover:text-indigo-600 shadow-sm transition"><i className="fa-solid fa-folder-plus mr-1"></i> New Folder</button>
@@ -624,16 +666,24 @@
                         )}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {/* FOLDERS */}
                             {visFolders.map(f => (
                                 <div key={f.id} onClick={()=>setCurrentFolderId(f.id)} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition cursor-pointer group flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 text-lg">{f.icon || '📁'}</div>
                                         <h3 className="font-bold text-slate-800">{f.name}</h3>
                                     </div>
-                                    <button onClick={(e)=>{e.stopPropagation(); deleteFolder(f.id);}} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition p-2"><i className="fa-solid fa-trash"></i></button>
+                                    {/* Recursive Delete Folder Button */}
+                                    <div className="relative group/menu">
+                                        <button className="text-slate-400 hover:text-slate-600 p-2"><i className="fa-solid fa-ellipsis-vertical"></i></button>
+                                        <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-32 overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition z-10">
+                                            <button onClick={(e)=>{e.stopPropagation(); deleteFolder(f.id);}} className="w-full text-left px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 border-t border-slate-100"><i className="fa-solid fa-trash w-4"></i> Delete</button>
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
 
+                            {/* SETS */}
                             {visSets.map(s => {
                                 const sCards = cards.filter(c=>c.setId===s.id);
                                 const due = sCards.filter(c=>c.nextReview<=Date.now()).length;
@@ -644,6 +694,7 @@
                                                 <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 text-lg">{s.icon || '📄'}</div>
                                                 <h3 className="font-bold text-slate-800 line-clamp-2">{s.name}</h3>
                                             </div>
+                                            {/* Set Menu: Browse and Delete */}
                                             <div className="relative group/menu">
                                                 <button className="text-slate-400 hover:text-slate-600 p-1"><i className="fa-solid fa-ellipsis-vertical"></i></button>
                                                 <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-32 overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition z-10">
