@@ -45,7 +45,7 @@
 
             const loadData = async (uid) => {
                 const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(uid);
-                const sSnap = await userRef.collection('sets').get();
+                const sSnap = await userRef.collection('study_sets_v2').get();
                 setSets(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
             };
 
@@ -55,14 +55,14 @@
                     const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
                     
                     let count = 0;
-                    // Save each set as its own individual document to avoid the 1MB limit
                     for (const [key, val] of Object.entries(data)) {
                         const parts = key.split('/');
                         const folderName = parts.length > 1 ? parts[0] : "General";
                         const setName = parts.length > 1 ? parts[1] : key;
 
                         const docId = key.replace(/[^a-zA-Z0-9-_]/g, '_');
-                        await userRef.collection('sets').doc(docId).set({
+                        // Write each set as its own distinct document, safely under the 1MB limit
+                        await userRef.collection('study_sets_v2').doc(docId).set({
                             name: setName,
                             folderName: folderName,
                             ...val,
@@ -71,7 +71,7 @@
                         count++;
                     }
 
-                    alert(`Successfully imported ${count} sets individually!`);
+                    alert(`Successfully imported ${count} sets cleanly!`);
                     setShowImportModal(false);
                     loadData(user.uid);
                 } catch (e) {
@@ -83,7 +83,7 @@
 
             if (!user) return (
                 <div className="p-10 text-center max-w-md mx-auto mt-20 bg-white rounded-2xl shadow-xl border">
-                    <h1 className="text-2xl font-black mb-2 text-blue-600">Lumina Flash</h1>
+                    <h1 className="text-2xl font-black mb-2 text-blue-600">Lumina Flash (Cache-Bust v2)</h1>
                     <button onClick={() => auth.signInAnonymously()} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold mb-3">Sign In Anonymously</button>
                     <button onClick={() => {
                         const email = prompt("Email:");
@@ -96,7 +96,7 @@
             return (
                 <div className="min-h-screen bg-slate-50">
                     <header className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
-                        <h1 className="text-xl font-extrabold text-slate-800">Lumina Flash</h1>
+                        <h1 className="text-xl font-extrabold text-slate-800">Lumina Flash (Cache-Bust v2)</h1>
                         <div className="flex items-center gap-2">
                             <button onClick={() => setShowImportModal(true)} className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-emerald-200 hover:bg-emerald-100">📥 Import Your Backup</button>
                             <button onClick={() => auth.signOut()} className="text-sm text-red-500 font-semibold px-3 py-1.5 rounded-lg">Sign Out</button>
