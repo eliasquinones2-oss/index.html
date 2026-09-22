@@ -51,7 +51,7 @@
 
             const rescueTargetData = async () => {
                 try {
-                    setStatus("Targeting source folder: 3zQgFMdcOGYS7ytCRnaGwPUFKSl2...");
+                    setStatus("Targeting source folder...");
                     const usersRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users');
                     
                     const sourceUserId = "3zQgFMdcOGYS7ytCRnaGwPUFKSl2";
@@ -59,9 +59,8 @@
                     const targetRef = usersRef.doc(user.uid);
 
                     let count = 0;
-
-                    // Grab all subcollections or direct collections if any exist
                     const collectionsToPull = ['cards', 'sets', 'folders', 'metadata'];
+                    
                     for (const colName of collectionsToPull) {
                         const snap = await sourceRef.collection(colName).get();
                         for (const doc of snap.docs) {
