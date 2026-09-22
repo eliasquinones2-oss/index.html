@@ -5,580 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lumina Flash SRS</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase Compat -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            background-color: #f8fafc;
+        }
+        
+        /* Scrollbar hiding */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-        
-        /* 3D Flip Card Styles */
+
+        /* 3D Flip Utilities */
         .perspective-1000 { perspective: 1000px; }
-        .card-flip-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-            transform-style: preserve-3d;
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        
+        /* STRICT RICH TEXT RESETS (Fixes weird spacing and Greek characters) */
+        .rich-text-content {
+            white-space: pre-wrap; /* Honors intentional line breaks */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: normal; /* Prevents splitting Greek words weirdly */
+            letter-spacing: normal !important;
         }
-        .card-flip-inner.flipped { transform: rotateY(180deg); }
-        .card-front, .card-back {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            border-radius: 1.5rem;
-            display: flex;
-            flex-direction: column;
-        }
-        .card-back { transform: rotateY(180deg); }
         
-        /* Rich Text Editor */
-        .rich-editor:empty:before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; display: block; }
-        .rich-editor:focus { outline: none; }
-        
-        /* Diagram Mode Styles */
-        .diagram-container { position: relative; user-select: none; touch-action: none; display: inline-block; }
-        .diagram-container img { max-width: 100%; height: auto; display: block; }
-        .occlusion-mask { position: absolute; background-color: #1e293b; border: 2px solid #0f172a; border-radius: 4px; pointer-events: none; }
-        .occlusion-mask.target-mask { background-color: #ef4444; border-color: #991b1b; animation: pulse-red 2s infinite; }
-        .occlusion-mask.revealed { background-color: rgba(30, 41, 59, 0.2); border-color: transparent; }
-        
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        /* Force standard inline behavior to prevent contenteditable from injecting blocks */
+        .rich-text-content b, .rich-text-content strong,
+        .rich-text-content i, .rich-text-content em,
+        .rich-text-content u {
+            display: inline !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: inherit;
         }
 
-        /* Color Theme Classes */
-        .theme-slate { --theme-bg: #f8fafc; --theme-text: #64748b; --theme-border: #e2e8f0; --theme-hover: #f1f5f9; --theme-accent: #334155; }
-        .theme-indigo { --theme-bg: #e0e7ff; --theme-text: #4f46e5; --theme-border: #c7d2fe; --theme-hover: #e0e7ff; --theme-accent: #4338ca; }
-        .theme-rose { --theme-bg: #ffe4e6; --theme-text: #e11d48; --theme-border: #fecdd3; --theme-hover: #ffe4e6; --theme-accent: #be123c; }
-        .theme-emerald { --theme-bg: #d1fae5; --theme-text: #059669; --theme-border: #a7f3d0; --theme-hover: #d1fae5; --theme-accent: #047857; }
-        .theme-amber { --theme-bg: #fef3c7; --theme-text: #d97706; --theme-border: #fde68a; --theme-hover: #fef3c7; --theme-accent: #b45309; }
+        /* Handle paragraphs safely */
+        .rich-text-content p, .rich-text-content div {
+            display: block;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+        .rich-text-content p:last-child, .rich-text-content div:last-child {
+            margin-bottom: 0;
+        }
 
-        /* Tool Active State */
-        .tool-active { background-color: #e0e7ff !important; color: #4f46e5 !important; border-color: #c7d2fe !important; }
+        /* Editor Placeholder */
+        .rich-editor:empty:before { 
+            content: attr(data-placeholder); 
+            color: #94a3b8; 
+            pointer-events: none; 
+            display: block; 
+        }
     </style>
 </head>
-<body class="text-slate-800 h-screen flex flex-col overflow-hidden bg-slate-50">
+<body>
+    <div id="root"></div>
 
-    <div id="auth-screen" class="flex-1 flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 w-full max-w-md space-y-6">
-            <div class="text-center">
-                <h1 class="text-3xl font-bold text-indigo-600 mb-2"><i class="fa-solid fa-layer-group"></i> Lumina Flash</h1>
-                <p class="text-slate-500 text-sm">Sign in to sync your flashcards securely.</p>
-            </div>
-            
-            <div id="auth-error" class="hidden bg-rose-50 text-rose-600 p-3 rounded-xl text-sm font-bold text-center border border-rose-100"></div>
-            
-            <form id="auth-form" class="space-y-4" onsubmit="event.preventDefault();">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Email</label>
-                    <input type="email" id="auth-email" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="you@example.com">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Password</label>
-                    <input type="password" id="auth-password" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="••••••••">
-                </div>
-                <div class="flex flex-col gap-3 pt-4">
-                    <button onclick="handleAuth('login')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all">Sign In</button>
-                    <button onclick="handleAuth('signup')" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">Create Account</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-    <div id="app-container" class="flex-1 flex-col overflow-hidden w-full hidden">
-        <header class="bg-white border-b border-slate-200 shrink-0 z-10 relative">
-            <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-                <div class="flex items-center gap-2 text-indigo-600 font-bold text-xl tracking-tight cursor-pointer" onclick="switchTab('study-sets')">
-                    <i class="fa-solid fa-layer-group"></i> Lumina Flash
-                </div>
-                
-                <div class="flex items-center gap-4">
-                    <div id="cloud-status" class="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 hidden md:flex transition-all">
-                        <i class="fa-solid fa-spinner fa-spin"></i> Connecting...
-                    </div>
-                    
-                    <nav class="flex gap-1 bg-slate-100 p-1 rounded-xl items-center">
-                        <button onclick="switchTab('study-sets')" id="tab-study-sets" class="px-4 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg bg-white shadow-sm text-indigo-700 transition-all">Study Sets</button>
-                        <button onclick="switchTab('import-export')" id="tab-import-export" class="px-4 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all">Import / Export</button>
-                        <button onclick="switchTab('recycle-bin')" id="tab-recycle-bin" class="px-4 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all"><i class="fa-solid fa-trash-can"></i><span class="hidden md:inline ml-1">Bin</span></button>
-                        <div class="w-px h-6 bg-slate-300 mx-1 hidden md:block"></div>
-                        <button onclick="toggleCalendar()" id="tab-calendar" class="px-3 py-2 text-xs md:text-sm font-bold rounded-lg text-indigo-500 hover:bg-indigo-100 transition-all" title="Study Calendar">
-                            <i class="fa-solid fa-calendar-days"></i>
-                        </button>
-                        <button onclick="handleSignOut()" class="px-3 py-2 text-xs md:text-sm font-bold rounded-lg text-rose-500 hover:bg-rose-100 hover:text-rose-700 transition-all" title="Sign Out">
-                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                        </button>
-                    </nav>
-                </div>
-            </div>
-        </header>
-
-        <div class="flex-1 flex overflow-hidden relative">
-            <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 relative">
-                <div class="max-w-6xl mx-auto h-full relative">
-
-                    <!-- FOLDERS & SETS VIEW -->
-                    <section id="view-folders" class="space-y-6 animate-in fade-in duration-300">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <div class="flex items-center gap-2 text-sm font-bold text-slate-600 flex-wrap" id="breadcrumb-container">
-                                <!-- Breadcrumbs injected here -->
-                            </div>
-                            <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                                <button onclick="openNewFolderModal()" class="flex-1 md:flex-none px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-folder-plus"></i> New Folder
-                                </button>
-                                <button onclick="openNewSetModal()" class="flex-1 md:flex-none px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-plus"></i> New Set
-                                </button>
-                                <div class="w-px h-6 bg-slate-200 hidden md:block mx-1"></div>
-                                <button onclick="startStudySession('all', null, 'study')" class="flex-1 md:flex-none px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-play"></i> Study All
-                                </button>
-                                <button onclick="openCustomStudyModal()" class="flex-1 md:flex-none px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-list-check"></i> Custom Study
-                                </button>
-                            </div>
-                        </div>
-                        <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <!-- Folders and Sets injected here -->
-                        </div>
-                    </section>
-
-                    <!-- SET DETAILS VIEW -->
-                    <section id="view-set-detail" class="hidden space-y-6 animate-in slide-in-from-right-4 duration-300">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4 relative overflow-hidden">
-                            <div id="set-detail-header-bg" class="absolute inset-0 opacity-10 pointer-events-none transition-colors duration-300"></div>
-                            <div class="flex justify-between items-start relative z-10">
-                                <div class="flex-1 min-w-0 pr-4">
-                                <button onclick="navigateUp()" class="text-slate-400 hover:text-indigo-600 text-sm font-bold flex items-center gap-1 mb-2 transition-colors">
-                                    <i class="fa-solid fa-arrow-left"></i> Back
-                                </button>
-                                <h2 id="detail-set-title" class="text-2xl font-bold text-slate-800 break-words leading-tight flex items-center gap-3">
-                                    <i id="detail-set-icon" class="fa-solid fa-layer-group text-slate-400 text-xl"></i>
-                                    <span>Set Name</span>
-                                </h2>
-                                <p id="detail-set-stats" class="text-sm text-slate-500 mt-1 ml-9">0 Cards Total</p>
-                            </div>
-                            <div class="flex gap-2 shrink-0">
-                                <button onclick="editCurrentSet()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Edit Set">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button onclick="openMoveModal()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Move Set">
-                                    <i class="fa-solid fa-folder-tree"></i>
-                                </button>
-                                <button onclick="deleteCurrentSet()" class="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Trash Set">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="flex flex-wrap md:flex-nowrap gap-3 pt-4 border-t border-slate-100 relative z-10">
-                                <button onclick="startStudySession('set', null, 'study')" class="flex-1 md:flex-none py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all flex justify-center items-center gap-2">
-                                    <i class="fa-solid fa-play"></i> Study Due Cards
-                                </button>
-                                <button onclick="startStudySession('set', null, 'browse')" class="flex-1 md:flex-none py-3 px-4 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-xl transition-all flex justify-center items-center gap-2">
-                                    <i class="fa-solid fa-book-open"></i> Browse Entire Set
-                                </button>
-                                <div class="w-full md:w-px md:h-12 bg-slate-200 md:mx-1 hidden md:block"></div>
-                                <button onclick="openCardEditor()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all flex justify-center items-center gap-2">
-                                    <i class="fa-solid fa-plus"></i> Add Card
-                                </button>
-                                <button onclick="openDiagramMode()" class="flex-1 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-xl transition-all flex justify-center items-center gap-2 whitespace-nowrap">
-                                    <i class="fa-solid fa-image"></i> Image Occlusion
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="space-y-3" id="detail-cards-list">
-                            <!-- Cards injected here -->
-                        </div>
-                    </section>
-
-                    <!-- STUDY / BROWSE VIEW -->
-                    <section id="view-study" class="hidden h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
-                        <div class="flex justify-between items-center mb-6 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <button onclick="goBackFromStudy()" class="text-slate-400 hover:text-slate-600 flex items-center gap-2 text-sm font-bold transition-colors">
-                                <i class="fa-solid fa-xmark text-lg"></i> <span id="study-back-text" class="hidden md:inline">End Session</span>
-                            </button>
-                            
-                            <div id="study-stats-header" class="flex gap-4 text-sm font-bold">
-                                <div class="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"><span id="count-new">0</span> <span class="text-blue-400 text-xs uppercase tracking-wider">New</span></div>
-                                <div class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg"><span id="count-due">0</span> <span class="text-amber-400 text-xs uppercase tracking-wider">Due</span></div>
-                            </div>
-
-                            <div id="browse-stats-header" class="hidden text-sm font-bold text-slate-500 bg-slate-100 px-4 py-1.5 rounded-lg border border-slate-200">
-                                Card <span id="browse-current-num" class="text-indigo-600">1</span> of <span id="browse-total-num">10</span>
-                            </div>
-                        </div>
-
-                        <div class="flex-1 perspective-1000 w-full max-w-2xl mx-auto cursor-pointer" onclick="flipCard()">
-                            <div id="flashcard-inner" class="card-flip-inner shadow-xl rounded-3xl border border-slate-200/60 bg-white">
-                                <!-- FRONT -->
-                                <div class="card-front p-6 md:p-8 flex flex-col bg-white overflow-hidden">
-                                    <div class="flex justify-between items-center text-slate-300 mb-4 shrink-0">
-                                        <i class="fa-solid fa-question-circle text-xl"></i>
-                                        <button onclick="event.stopPropagation(); readCardAloud('front')" class="p-2 hover:text-indigo-500 transition-colors z-10"><i class="fa-solid fa-volume-high"></i></button>
-                                    </div>
-                                    <div id="flashcard-front" class="flex-1 flex flex-col items-center justify-center text-center text-lg md:text-xl font-medium text-slate-800 overflow-y-auto custom-scrollbar w-full break-words">
-                                        <!-- Front content injected here -->
-                                    </div>
-                                    <div id="flashcard-footnote-front" class="w-full mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 italic font-medium text-left hidden shrink-0 break-words"></div>
-                                    <div class="text-center text-xs font-bold text-slate-300 uppercase tracking-widest mt-4 shrink-0 animate-pulse">Tap to flip</div>
-                                </div>
-
-                                <!-- BACK -->
-                                <div class="card-back p-6 md:p-8 flex flex-col bg-indigo-50 border-2 border-indigo-100 overflow-hidden">
-                                    <div class="flex justify-between items-center text-indigo-300 mb-4 shrink-0">
-                                        <i class="fa-solid fa-lightbulb text-xl"></i>
-                                        <button onclick="event.stopPropagation(); readCardAloud('back')" class="p-2 hover:text-indigo-600 transition-colors z-10"><i class="fa-solid fa-volume-high"></i></button>
-                                    </div>
-                                    <div id="flashcard-back" class="flex-1 flex flex-col items-center justify-center text-center text-lg md:text-xl font-medium text-slate-800 overflow-y-auto custom-scrollbar w-full break-words">
-                                        <!-- Back content injected here -->
-                                    </div>
-                                    <div id="flashcard-footnote" class="w-full mt-4 pt-4 border-t border-indigo-200 text-xs text-indigo-500/80 italic font-medium text-left hidden shrink-0 break-words"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Grading Controls (SRS Mode) -->
-                        <div id="grading-buttons" class="hidden mt-8 flex justify-center gap-3 md:gap-4 shrink-0 max-w-2xl mx-auto w-full pb-4">
-                            <button onclick="rateCard(1)" class="flex-1 py-4 bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
-                                <span class="text-lg">Hard</span>
-                                <span class="text-[10px] uppercase tracking-wider text-rose-400 group-hover:text-rose-500">Again</span>
-                            </button>
-                            <button onclick="rateCard(3)" class="flex-1 py-4 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
-                                <span class="text-lg">Good</span>
-                                <span class="text-[10px] uppercase tracking-wider text-emerald-400 group-hover:text-emerald-500">Standard</span>
-                            </button>
-                            <button onclick="rateCard(5)" class="flex-1 py-4 bg-white hover:bg-blue-50 border border-blue-200 text-blue-600 font-bold rounded-2xl shadow-sm transition-all flex flex-col items-center gap-1 active:scale-95 group">
-                                <span class="text-lg">Easy</span>
-                                <span class="text-[10px] uppercase tracking-wider text-blue-400 group-hover:text-blue-500">Delay</span>
-                            </button>
-                        </div>
-
-                        <!-- Browse Controls (Review Mode) -->
-                        <div id="browse-controls" class="hidden mt-8 flex justify-between items-center gap-4 shrink-0 max-w-2xl mx-auto w-full pb-4">
-                            <button onclick="navigateBrowse(-1)" class="flex-1 py-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95">
-                                <i class="fa-solid fa-arrow-left"></i> Previous
-                            </button>
-                            <button onclick="navigateBrowse(1)" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white font-bold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95">
-                                Next <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </section>
-
-                    <!-- IMPORT EXPORT VIEW -->
-                    <section id="view-import-export" class="hidden space-y-6 max-w-3xl mx-auto animate-in fade-in duration-300 pb-10">
-                        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
-                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-import text-indigo-500"></i> Import JSON</h2>
-                            <p class="text-sm text-slate-500 leading-relaxed">Paste a JSON code block here to instantly import a batch of flashcards into your library.</p>
-                            <textarea id="import-json-text" rows="6" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-mono text-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none custom-scrollbar" placeholder='[{"front": "Question...", "back": "Answer...", "category": "Deck Name"}]'></textarea>
-                            <button onclick="importDeck()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto">Import Cards</button>
-                        </div>
-
-                        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
-                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-emerald-500"></i> Export Backup</h2>
-                            <p class="text-sm text-slate-500 leading-relaxed">Export your entire library as a JSON string. Save this text somewhere safe to backup your progress.</p>
-                            <button onclick="exportDeck()" class="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Copy JSON to Clipboard</button>
-                        </div>
-                    </section>
-
-                    <!-- RECYCLE BIN VIEW -->
-                    <section id="view-recycle-bin" class="hidden space-y-6 animate-in fade-in duration-300 pb-10">
-                        <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-trash-can text-slate-400"></i> Recycle Bin</h2>
-                            <button onclick="emptyRecycleBin()" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold text-xs rounded-xl transition-all flex items-center gap-2">
-                                <i class="fa-solid fa-dumpster-fire"></i> Empty Bin
-                            </button>
-                        </div>
-                        <div id="recycle-bin-list" class="space-y-3">
-                            <!-- Trashed items injected here -->
-                        </div>
-                    </section>
-                </div>
-            </main>
-
-            <aside id="calendar-sidebar" class="hidden w-80 bg-white border-l border-slate-200 shadow-2xl z-40 shrink-0 absolute right-0 top-0 bottom-0 md:relative md:shadow-none flex-col animate-in slide-in-from-right-4 duration-300">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-indigo-500"></i> Study Schedule</h3>
-                    <button onclick="toggleCalendar()" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200 transition-colors"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="p-3 border-b border-slate-100 bg-white text-xs text-slate-500 font-medium">
-                    This schedule shows when your cards will be due for review based on spaced repetition algorithms.
-                </div>
-                <div id="calendar-list" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 bg-white">
-                    <!-- Calendar days injected here -->
-                </div>
-            </aside>
-        </div>
-    </div>
-
-    <div id="modal-container">
-        <!-- Alert Modal -->
-        <div id="alert-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
-                <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto text-xl"><i class="fa-solid fa-circle-info"></i></div>
-                <p id="alert-message" class="text-sm font-semibold text-slate-800 break-words"></p>
-                <button onclick="closeModal('alert-modal')" class="w-full py-2.5 bg-slate-900 text-white font-bold rounded-xl">OK</button>
-            </div>
-        </div>
-
-        <!-- Single Input Modal (Folders & Sets) -->
-        <div id="input-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
-                <h3 id="input-modal-title" class="font-bold text-lg text-slate-800">Title</h3>
-                <input type="text" id="input-modal-field" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Enter name...">
-                <div class="flex gap-2">
-                    <button onclick="closeModal('input-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
-                    <button id="input-modal-submit" class="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl">Create</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Edit/Rename Modal (Color, Icon, & Name) -->
-        <div id="edit-item-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5">
-                <h3 id="edit-item-title" class="font-bold text-lg text-slate-800">Edit Item</h3>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Name</label>
-                    <input type="text" id="edit-item-name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                </div>
-                <div class="space-y-2">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Color Theme</label>
-                    <div class="flex gap-3 justify-between">
-                        <button onclick="selectThemeColor('slate')" id="theme-btn-slate" class="w-8 h-8 rounded-full bg-slate-200 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
-                        <button onclick="selectThemeColor('indigo')" id="theme-btn-indigo" class="w-8 h-8 rounded-full bg-indigo-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
-                        <button onclick="selectThemeColor('rose')" id="theme-btn-rose" class="w-8 h-8 rounded-full bg-rose-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
-                        <button onclick="selectThemeColor('emerald')" id="theme-btn-emerald" class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
-                        <button onclick="selectThemeColor('amber')" id="theme-btn-amber" class="w-8 h-8 rounded-full bg-amber-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
-                    </div>
-                </div>
-                
-                <div class="space-y-2 pt-2 border-t border-slate-100">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Icon</label>
-                    <div class="grid grid-cols-5 gap-2" id="icon-picker-container">
-                        <button onclick="selectIcon('fa-folder')" id="icon-btn-fa-folder" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-folder text-lg"></i></button>
-                        <button onclick="selectIcon('fa-layer-group')" id="icon-btn-fa-layer-group" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-layer-group text-lg"></i></button>
-                        <button onclick="selectIcon('fa-book')" id="icon-btn-fa-book" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-book text-lg"></i></button>
-                        <button onclick="selectIcon('fa-brain')" id="icon-btn-fa-brain" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-brain text-lg"></i></button>
-                        <button onclick="selectIcon('fa-language')" id="icon-btn-fa-language" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-language text-lg"></i></button>
-                        <button onclick="selectIcon('fa-calculator')" id="icon-btn-fa-calculator" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-calculator text-lg"></i></button>
-                        <button onclick="selectIcon('fa-atom')" id="icon-btn-fa-atom" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-atom text-lg"></i></button>
-                        <button onclick="selectIcon('fa-globe')" id="icon-btn-fa-globe" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-globe text-lg"></i></button>
-                        <button onclick="selectIcon('fa-music')" id="icon-btn-fa-music" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-music text-lg"></i></button>
-                        <button onclick="selectIcon('fa-briefcase')" id="icon-btn-fa-briefcase" class="w-full h-10 rounded-xl bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-all icon-selector"><i class="fa-solid fa-briefcase text-lg"></i></button>
-                    </div>
-                </div>
-
-                <div class="flex gap-2 pt-2 border-t border-slate-100">
-                    <button onclick="closeModal('edit-item-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
-                    <button id="edit-item-submit" class="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl">Save</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Move Set Modal -->
-        <div id="move-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
-                <h3 class="font-bold text-lg text-slate-800">Move To...</h3>
-                <div id="move-folder-list" class="max-h-60 overflow-y-auto space-y-1 p-1 custom-scrollbar border border-slate-100 rounded-xl bg-slate-50">
-                    <!-- Tree injected here -->
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button onclick="closeModal('move-modal')" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
-                    <button onclick="executeMoveSet()" class="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl">Move</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Custom Study Modal -->
-        <div id="custom-study-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 flex flex-col max-h-[85vh]">
-                <div class="flex justify-between items-center shrink-0">
-                    <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-500"></i> Select Sets</h3>
-                    <button onclick="closeModal('custom-study-modal')" class="text-slate-400 hover:text-slate-600 text-lg w-8 h-8 rounded-full hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div id="custom-study-list" class="overflow-y-auto space-y-1 flex-1 pr-2 custom-scrollbar"></div>
-                <div class="flex gap-3 pt-4 shrink-0 border-t border-slate-100">
-                    <button onclick="startCustomStudy()" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow flex justify-center items-center gap-2"><i class="fa-solid fa-play"></i> Start Studying</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Standard Card Editor Modal -->
-        <div id="editor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 flex flex-col max-h-[90vh]">
-                <div class="flex justify-between items-center shrink-0">
-                    <h3 id="editor-title" class="font-bold text-xl text-slate-800">Add Card</h3>
-                    <button onclick="closeModal('editor-modal')" class="text-slate-400 hover:bg-slate-100 w-8 h-8 rounded-full"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                
-                <div class="overflow-y-auto custom-scrollbar flex-1 space-y-4 pr-2">
-                    <div class="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                        <button onclick="formatText('bold')" class="w-8 h-8 rounded bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100" title="Bold">B</button>
-                        <button onclick="formatText('italic')" class="w-8 h-8 rounded bg-white border border-slate-200 text-slate-700 italic hover:bg-slate-100" title="Italic">I</button>
-                        <button onclick="formatText('underline')" class="w-8 h-8 rounded bg-white border border-slate-200 text-slate-700 underline hover:bg-slate-100" title="Underline">U</button>
-                        <div class="w-px h-6 bg-slate-300 mx-1 mt-1"></div>
-                        <input type="color" id="editor-color-picker" class="w-8 h-8 rounded cursor-pointer border-0 p-0" onchange="formatText('foreColor', this.value)" title="Text Color">
-                    </div>
-
-                    <div class="space-y-1">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Front (Question)</label>
-                        <div id="editor-front" class="rich-editor w-full min-h-[80px] bg-white border border-slate-200 rounded-xl p-3 text-sm focus:border-indigo-500" contenteditable="true" data-placeholder="Type question here..."></div>
-                        <div class="flex gap-2 mt-2">
-                            <label class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1">
-                                <i class="fa-solid fa-upload"></i> Image
-                                <input type="file" id="upload-front-img" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'preview-front')">
-                            </label>
-                            <button onclick="openDrawing('front')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold"><i class="fa-solid fa-pen"></i> Draw</button>
-                        </div>
-                        <div id="preview-front" class="mt-2 hidden">
-                            <img src="" class="max-h-32 rounded-lg border border-slate-200">
-                            <button onclick="clearUploadedImage('preview-front')" class="text-xs text-red-500 mt-1 font-bold">Remove</button>
-                        </div>
-                        <input type="hidden" id="editor-draw-front">
-                        <textarea id="editor-footnote-front" rows="1" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs italic text-slate-500 focus:border-indigo-500 outline-none mt-2" placeholder="Front footnote (optional hint or context...)"></textarea>
-                    </div>
-
-                    <div class="space-y-1 pt-2 border-t border-slate-100">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Back (Answer)</label>
-                        <div id="editor-back" class="rich-editor w-full min-h-[100px] bg-white border border-slate-200 rounded-xl p-3 text-sm focus:border-indigo-500" contenteditable="true" data-placeholder="Type answer here..."></div>
-                        <div class="flex gap-2 mt-2">
-                            <label class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1">
-                                <i class="fa-solid fa-upload"></i> Image
-                                <input type="file" id="upload-back-img" accept="image/*" class="hidden" onchange="handleImageUpload(this, 'preview-back')">
-                            </label>
-                            <button onclick="openDrawing('back')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold"><i class="fa-solid fa-pen"></i> Draw</button>
-                        </div>
-                        <div id="preview-back" class="mt-2 hidden">
-                            <img src="" class="max-h-32 rounded-lg border border-slate-200">
-                            <button onclick="clearUploadedImage('preview-back')" class="text-xs text-red-500 mt-1 font-bold">Remove</button>
-                        </div>
-                        <input type="hidden" id="editor-draw-back">
-                    </div>
-
-                    <div class="space-y-1 pt-2 border-t border-slate-100">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Back Footnote (Optional Info)</label>
-                        <textarea id="editor-footnote" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm italic text-slate-600 focus:border-indigo-500 outline-none" placeholder="Mnemonics, sources, extra context..."></textarea>
-                    </div>
-                </div>
-
-                <div class="flex gap-3 pt-4 shrink-0 border-t border-slate-100">
-                    <button onclick="closeModal('editor-modal')" class="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
-                    <button onclick="saveCard()" class="flex-[2] py-3 bg-indigo-600 text-white font-bold rounded-xl shadow">Save Card</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Enhanced Drawing Modal (Includes Text & Image Insertion) -->
-        <div id="drawing-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[70] hidden flex flex-col items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-4 shadow-2xl flex flex-col gap-4 w-full max-w-lg">
-                <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800">Advanced Drawing Tool</h3>
-                    <div class="flex gap-2">
-                        <button onclick="clearCanvas()" class="px-3 py-1 bg-rose-100 text-rose-600 text-xs font-bold rounded-lg hover:bg-rose-200 transition">Clear</button>
-                        <button onclick="saveDrawing()" class="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-200 transition">Save Sketch</button>
-                    </div>
-                </div>
-                
-                <!-- Enhanced Toolbar -->
-                <div class="flex flex-wrap gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200">
-                    <!-- Tools -->
-                    <div class="flex gap-1 bg-white p-1 rounded-lg border border-slate-200">
-                        <button id="tool-btn-brush" onclick="setDrawTool('brush')" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 tool-active transition-colors" title="Brush Tool"><i class="fa-solid fa-paintbrush"></i></button>
-                        <button id="tool-btn-text" onclick="setDrawTool('text')" class="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors" title="Text Stamp Tool"><i class="fa-solid fa-font"></i></button>
-                    </div>
-                    <div class="w-px h-6 bg-slate-300 mx-1"></div>
-                    
-                    <!-- Brushes/Colors -->
-                    <div class="flex gap-1 items-center">
-                        <button onclick="setBrush('#0f172a')" class="w-6 h-6 rounded-full bg-slate-900 border-2 border-transparent focus:border-indigo-500"></button>
-                        <button onclick="setBrush('#dc2626')" class="w-6 h-6 rounded-full bg-red-600 border-2 border-transparent focus:border-indigo-500"></button>
-                        <button onclick="setBrush('#2563eb')" class="w-6 h-6 rounded-full bg-blue-600 border-2 border-transparent focus:border-indigo-500"></button>
-                        <button onclick="setBrush('#16a34a')" class="w-6 h-6 rounded-full bg-green-600 border-2 border-transparent focus:border-indigo-500"></button>
-                        <input type="range" id="brush-size" min="1" max="10" value="3" class="ml-2 w-20">
-                    </div>
-                    
-                    <div class="w-px h-6 bg-slate-300 mx-1"></div>
-                    
-                    <!-- Text Input (Hidden initially) -->
-                    <input type="text" id="draw-text-val" class="hidden flex-1 min-w-[100px] bg-white border border-slate-200 rounded p-1 text-sm outline-none focus:border-indigo-500" placeholder="Type text, tap canvas...">
-                    
-                    <!-- Image Insertion -->
-                    <label class="ml-auto flex items-center justify-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
-                        <i class="fa-solid fa-image"></i> Add Image
-                        <input type="file" accept="image/*" class="hidden" onchange="drawInsertImage(this)">
-                    </label>
-                </div>
-
-                <div class="flex justify-center bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                    <canvas id="draw-canvas" width="400" height="300" class="bg-white cursor-crosshair touch-none" style="max-width: 100%; height: auto; display: block;"></canvas>
-                </div>
-                
-                <button onclick="closeModal('drawing-modal')" class="py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition">Cancel</button>
-            </div>
-        </div>
-
-        <!-- Image Diagram (Occlusion) Modal -->
-        <div id="diagram-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 hidden flex flex-col items-center justify-center p-4">
-            <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh]">
-                <div class="flex justify-between items-center mb-4 shrink-0">
-                    <div>
-                        <h3 class="font-bold text-xl text-slate-800"><i class="fa-solid fa-image text-amber-500 mr-2"></i> Image Occlusion</h3>
-                        <p class="text-xs text-slate-500">Upload a diagram and draw boxes over labels to hide them.</p>
-                    </div>
-                    <button onclick="closeModal('diagram-modal')" class="text-slate-400 hover:bg-slate-100 w-8 h-8 rounded-full"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                
-                <div class="flex flex-wrap gap-3 mb-4 shrink-0 p-3 bg-slate-50 border border-slate-200 rounded-xl items-center">
-                    <label class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm cursor-pointer transition-colors shadow-sm">
-                        <i class="fa-solid fa-upload mr-1"></i> Upload Diagram Image
-                        <input type="file" accept="image/*" class="hidden" onchange="handleDiagramUpload(this)">
-                    </label>
-                    <div class="w-px h-6 bg-slate-300 hidden md:block"></div>
-                    <button onclick="clearDiagramMasks()" class="px-3 py-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-600 text-sm font-bold rounded-lg transition-colors">Clear Masks</button>
-                    <button onclick="undoLastMask()" class="px-3 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 text-sm font-bold rounded-lg transition-colors"><i class="fa-solid fa-rotate-left"></i> Undo</button>
-                    <div class="ml-auto flex items-center text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-                        <span id="mask-count">0</span>&nbsp;Masks Drawn
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-auto bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center p-2 relative" id="diagram-workspace">
-                    <div id="diagram-empty-state" class="text-center text-slate-400 p-8 pointer-events-none">
-                        <i class="fa-solid fa-file-image text-4xl mb-2"></i>
-                        <p class="text-sm font-bold">No image uploaded yet.</p>
-                    </div>
-                    <div id="diagram-container" class="diagram-container hidden" onmousedown="startMaskDraw(event)" onmousemove="drawMask(event)" onmouseup="endMaskDraw(event)" ontouchstart="startMaskDraw(event)" ontouchmove="drawMask(event)" ontouchend="endMaskDraw(event)">
-                        <img id="diagram-image" src="" draggable="false">
-                        <div id="diagram-masks-layer" class="absolute inset-0 pointer-events-none"></div>
-                        <div id="current-draw-mask" class="absolute border-2 border-indigo-500 bg-indigo-500/30 hidden pointer-events-none"></div>
-                    </div>
-                </div>
-
-                <div class="flex gap-3 pt-4 mt-4 shrink-0 border-t border-slate-100">
-                    <button onclick="closeModal('diagram-modal')" class="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl">Cancel</button>
-                    <button onclick="generateDiagramCards()" class="flex-[2] py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow transition-colors"><i class="fa-solid fa-layer-group"></i> Generate Flashcards</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, getDocs, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Hardcoded Firebase Keys for direct connection
-        const appId = 'lumina-flash-6298f'; 
+        // 1. INITIALIZE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyDqk1ojTgEnzsGKnNFphi-CbMPIww43Ewo",
             authDomain: "lumina-flash-6298f.firebaseapp.com",
@@ -587,1135 +99,583 @@
             messagingSenderId: "281445871040",
             appId: "1:281445871040:web:8fad281101f1833c796c25"
         };
-
-        let app, auth, db, userId;
-        let unsubscribeMeta, unsubscribeCards, unsubscribeTrash;
-
-        let deck = [];
-        let folders = { '_root': [] }; 
-        let folderMeta = {}; 
-        let setMeta = {}; 
-        let trash = []; 
         
-        let currentPath = '_root';
-        let selectedSet = null;
-        
-        let sessionMode = 'study'; // 'study' (SRS) or 'browse' (Free Review)
-        let activeStudyTarget = { type: null, path: null }; 
-        let currentCardIndex = -1;
-        let browseCardsList = []; 
-        
-        let editingCardId = null;
-        let editingItemType = null; 
-        let editingItemOldName = null;
-        let editingItemParentPath = null;
-        let selectedThemeColor = 'slate';
-        let selectedIcon = 'fa-folder';
-
-        let drawingTarget = null; 
-        let drawTool = 'brush'; // 'brush' or 'text'
-        let canvas, ctx;
-        let isDrawing = false;
-        let brushColor = '#0f172a';
-        let diagramBase64 = "";
-        let occlusionMasks = []; 
-        let isMaskDrawing = false;
-        let maskStartX = 0, maskStartY = 0;
-        let isCalendarOpen = false;
-
-        let syncTimeout;
-        const triggerSyncAnim = () => {
-            const el = document.getElementById('cloud-status');
-            el.innerHTML = '<i class="fa-solid fa-cloud-arrow-up animate-pulse text-indigo-400"></i> Syncing...';
-            clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => {
-                el.innerHTML = '<i class="fa-solid fa-cloud text-emerald-500"></i> Synced';
-                if(isCalendarOpen) renderCalendar(); // Refresh calendar if open
-            }, 800);
-        };
-
-        // Utility to safely escape strings for inline event handlers
-        const esc = (str) => String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-        const initCloud = async () => {
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        document.getElementById('auth-screen').classList.add('hidden');
-                        
-                        const appContainer = document.getElementById('app-container');
-                        appContainer.classList.remove('hidden');
-                        appContainer.classList.add('flex');
-                        
-                        document.getElementById('cloud-status').classList.remove('hidden');
-                        document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud text-emerald-500"></i> Connected';
-                        
-                        setupFirestoreListeners();
-                        initCanvas();
-                    } else {
-                        userId = null;
-                        if(unsubscribeMeta) unsubscribeMeta();
-                        if(unsubscribeCards) unsubscribeCards();
-                        if(unsubscribeTrash) unsubscribeTrash();
-                        
-                        document.getElementById('auth-screen').classList.remove('hidden');
-                        const appContainer = document.getElementById('app-container');
-                        appContainer.classList.add('hidden');
-                        appContainer.classList.remove('flex');
-                    }
-                });
-            } catch (e) {
-                showAlert("Cloud Connection Failed: " + e.message);
-            }
-        };
-
-        window.handleAuth = async (action) => {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-password').value;
-            const errEl = document.getElementById('auth-error');
-            errEl.classList.add('hidden');
-            
-            if(!email || !pass) {
-                errEl.innerText = "Please enter an email and password.";
-                errEl.classList.remove('hidden');
-                return;
-            }
-            
-            try {
-                if(action === 'login') {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                } else {
-                    await createUserWithEmailAndPassword(auth, email, pass);
-                }
-            } catch(e) {
-                errEl.innerText = e.message;
-                errEl.classList.remove('hidden');
-            }
-        };
-
-        window.handleSignOut = () => {
-            if(confirm("Sign out of Lumina Flash?")) {
-                signOut(auth);
-            }
-        };
-
-        const setupFirestoreListeners = () => {
-            unsubscribeMeta = onSnapshot(doc(db, 'artifacts', appId, 'users', userId, 'metadata', 'core'), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    folders = data.folders || { '_root': [] };
-                    folderMeta = data.folderMeta || {};
-                    setMeta = data.setMeta || {};
-                    renderFoldersView();
-                } else {
-                    saveMetadataToCloud(); 
-                }
-            }, (error) => {
-                document.getElementById('cloud-status').innerHTML = '<i class="fa-solid fa-cloud-xmark text-amber-500"></i> Sync Error';
-            });
-
-            unsubscribeCards = onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'cards'), (snapshot) => {
-                deck = snapshot.docs.map(doc => doc.data());
-                if (!document.getElementById('view-set-detail').classList.contains('hidden') && selectedSet) {
-                    openSetDetail(selectedSet); 
-                }
-                if (isCalendarOpen) renderCalendar();
-            });
-
-            unsubscribeTrash = onSnapshot(collection(db, 'artifacts', appId, 'users', userId, 'trash'), (snapshot) => {
-                trash = snapshot.docs.map(doc => doc.data());
-                if (!document.getElementById('view-recycle-bin').classList.contains('hidden')) {
-                    renderRecycleBin();
-                }
-            });
-        };
-
-        const saveMetadataToCloud = () => {
-            if (!userId) return;
-            triggerSyncAnim();
-            setDoc(doc(db, 'artifacts', appId, 'users', userId, 'metadata', 'core'), {
-                folders, folderMeta, setMeta
-            }).catch(e => console.error(e));
-        };
-
-        const saveCardToCloud = (card) => {
-            if (!userId) return;
-            triggerSyncAnim();
-            setDoc(doc(db, 'artifacts', appId, 'users', userId, 'cards', card.id), card).catch(e => console.error(e));
-        };
-
-        const deleteCardFromCloud = (cardId) => {
-            if (!userId) return;
-            triggerSyncAnim();
-            deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'cards', cardId)).catch(e => console.error(e));
-        };
-
-        const saveTrashToCloud = (trashItem) => {
-            if (!userId) return;
-            triggerSyncAnim();
-            setDoc(doc(db, 'artifacts', appId, 'users', userId, 'trash', trashItem.id), trashItem).catch(e => console.error(e));
-        };
-
-        const deleteTrashFromCloud = (trashId) => {
-            if (!userId) return;
-            triggerSyncAnim();
-            deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'trash', trashId)).catch(e => console.error(e));
-        };
-
-        const generateId = () => Math.random().toString(36).substr(2, 9);
-        const showAlert = (msg) => { document.getElementById('alert-message').innerText = msg; document.getElementById('alert-modal').classList.remove('hidden'); };
-        const closeModal = (id) => document.getElementById(id).classList.add('hidden');
-
-        const switchTab = (tabId) => {
-            ['study-sets', 'import-export', 'recycle-bin'].forEach(t => {
-                const el = document.getElementById(`tab-${t}`);
-                if(el) { el.classList.remove('bg-white', 'shadow-sm', 'text-indigo-700'); el.classList.add('text-slate-500'); }
-            });
-            const activeEl = document.getElementById(`tab-${tabId}`);
-            if(activeEl) { activeEl.classList.remove('text-slate-500'); activeEl.classList.add('bg-white', 'shadow-sm', 'text-indigo-700'); }
-
-            if (tabId === 'study-sets') { currentPath = '_root'; switchView('folders'); }
-            if (tabId === 'import-export') switchView('import-export');
-            if (tabId === 'recycle-bin') { renderRecycleBin(); switchView('recycle-bin'); }
-        };
-
-        const switchView = (viewId) => {
-            ['view-folders', 'view-set-detail', 'view-study', 'view-import-export', 'view-recycle-bin'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-            });
-            document.getElementById(`view-${viewId}`).classList.remove('hidden');
-            if (viewId === 'folders') renderFoldersView();
-        };
-
-        const getDirectChildren = (path) => {
-            const children = { folders: [], sets: folders[path] || [] };
-            Object.keys(folders).forEach(k => {
-                if (k === '_root' || k === path) return;
-                let parentPrefix = path === '_root' ? '' : path + '/';
-                if (path === '_root' && k.indexOf('/') === -1) { children.folders.push(k); } 
-                else if (path !== '_root' && k.startsWith(parentPrefix)) {
-                    let remainder = k.substring(parentPrefix.length);
-                    if (remainder.indexOf('/') === -1) children.folders.push(k);
-                }
-            });
-            return children;
-        };
-
-        const getCardsInFolderTree = (folderPath) => {
-            let cards = [];
-            for (const [f, sets] of Object.entries(folders)) {
-                if (f === folderPath || f.startsWith(folderPath + '/')) {
-                    sets.forEach(set => {
-                        let fullSetName = f === '_root' ? set : `${f}/${set}`;
-                        cards = cards.concat(deck.filter(c => c.category === fullSetName));
-                    });
-                }
-            }
-            return cards;
-        };
-
-        const getColorThemeClass = (colorName) => {
-            const map = { 'slate': 'theme-slate', 'indigo': 'theme-indigo', 'rose': 'theme-rose', 'emerald': 'theme-emerald', 'amber': 'theme-amber' };
-            return map[colorName] || 'theme-slate';
-        };
-
-        const renderFoldersView = () => {
-            const bcContainer = document.getElementById('breadcrumb-container');
-            bcContainer.innerHTML = '';
-            let crumbHTML = `<button onclick="openFolder('_root')" class="hover:text-indigo-600 transition-colors"><i class="fa-solid fa-house"></i> Home</button>`;
-            
-            if (currentPath !== '_root') {
-                const parts = currentPath.split('/');
-                let buildPath = '';
-                parts.forEach((p, i) => {
-                    buildPath += (i === 0 ? p : '/' + p);
-                    crumbHTML += ` <i class="fa-solid fa-chevron-right text-[10px] text-slate-300 mx-1"></i> `;
-                    if (i === parts.length - 1) crumbHTML += `<span class="text-slate-800">${p}</span>`;
-                    else crumbHTML += `<button onclick="openFolder('${esc(buildPath)}')" class="hover:text-indigo-600 transition-colors">${p}</button>`;
-                });
-            }
-            bcContainer.innerHTML = crumbHTML;
-
-            const grid = document.getElementById('folders-grid');
-            grid.innerHTML = '';
-            const children = getDirectChildren(currentPath);
-            const now = Date.now();
-
-            children.folders.sort().forEach(fPath => {
-                const fName = fPath.split('/').pop();
-                let folderCards = getCardsInFolderTree(fPath);
-                let dueCount = folderCards.filter(c => c.nextReview <= now).length;
-                let color = (folderMeta[fPath] && folderMeta[fPath].color) ? folderMeta[fPath].color : 'slate';
-                let icon = (folderMeta[fPath] && folderMeta[fPath].icon) ? folderMeta[fPath].icon : 'fa-folder';
-                
-                grid.innerHTML += `
-                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openFolder('${esc(fPath)}')">
-                        <div class="flex items-start justify-between mb-2">
-                            <div class="flex items-start gap-3 w-full pr-2">
-                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid ${icon}"></i></div>
-                                <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${fName}</h3>
-                            </div>
-                            <div class="flex flex-col gap-1 items-end shrink-0">
-                                <button onclick="event.stopPropagation(); openEditItemModal('folder', '${esc(fName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-0 group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
-                                <button onclick="event.stopPropagation(); startStudySession('folder', '${esc(fPath)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
-                            </div>
-                        </div>
-                        <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
-                            <span class="text-[var(--theme-text)] opacity-70">${folderCards.length} Cards</span>
-                            ${dueCount > 0 ? `<span class="bg-white text-[var(--theme-text)] px-2 py-0.5 rounded-md shadow-sm">${dueCount} Due</span>` : `<span class="text-[var(--theme-text)] opacity-50"><i class="fa-solid fa-check"></i> Done</span>`}
-                        </div>
-                    </div>`;
-            });
-
-            children.sets.sort().forEach(setName => {
-                let fullSetName = currentPath === '_root' ? setName : `${currentPath}/${setName}`;
-                let setCards = deck.filter(c => c.category === fullSetName);
-                let dueCount = setCards.filter(c => c.nextReview <= now).length;
-                let color = (setMeta[fullSetName] && setMeta[fullSetName].color) ? setMeta[fullSetName].color : 'slate';
-                let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
-
-                grid.innerHTML += `
-                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openSetDetail('${esc(setName)}')">
-                        <div class="flex items-start justify-between mb-2">
-                            <div class="flex items-start gap-3 w-full pr-2">
-                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid ${icon}"></i></div>
-                                <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${setName}</h3>
-                            </div>
-                            <div class="flex flex-col gap-1 items-end shrink-0">
-                                <button onclick="event.stopPropagation(); openEditItemModal('set', '${esc(setName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-0 group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
-                                <button onclick="event.stopPropagation(); startStudySession('set', '${esc(fullSetName)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
-                            </div>
-                        </div>
-                        <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
-                            <span class="text-[var(--theme-text)] opacity-70">${setCards.length} Cards</span>
-                            ${dueCount > 0 ? `<span class="bg-white text-[var(--theme-text)] px-2 py-0.5 rounded-md shadow-sm">${dueCount} Due</span>` : `<span class="text-[var(--theme-text)] opacity-50"><i class="fa-solid fa-check"></i> Done</span>`}
-                        </div>
-                    </div>`;
-            });
-
-            if (children.folders.length === 0 && children.sets.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full py-12 text-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
-                        <div class="text-slate-300 text-4xl mb-3"><i class="fa-solid fa-folder-open"></i></div>
-                        <h3 class="text-slate-700 font-bold mb-1">It's empty here!</h3>
-                        <p class="text-slate-500 text-sm">Create a New Folder or Set to get started.</p>
-                    </div>`;
-            }
-        };
-
-        const openFolder = (path) => { currentPath = path; renderFoldersView(); };
-        const navigateUp = () => {
-            if (currentPath === '_root') { switchView('folders'); return; }
-            if (selectedSet) { selectedSet = null; switchView('folders'); return; }
-            const parts = currentPath.split('/');
-            parts.pop();
-            currentPath = parts.length > 0 ? parts.join('/') : '_root';
-            renderFoldersView();
-        };
-
-        const openNewFolderModal = () => { document.getElementById('input-modal-title').innerText = "New Folder Name"; document.getElementById('input-modal-field').value = ''; document.getElementById('input-modal-submit').onclick = createFolder; document.getElementById('input-modal').classList.remove('hidden'); document.getElementById('input-modal-field').focus(); };
-        const createFolder = () => {
-            let name = document.getElementById('input-modal-field').value.trim();
-            if (!name || name.includes('/')) return showAlert("Invalid name. '/' is not allowed.");
-            let newPath = currentPath === '_root' ? name : currentPath + '/' + name;
-            if (folders[newPath]) return showAlert("Folder already exists.");
-            folders[newPath] = []; folderMeta[newPath] = { color: 'slate', icon: 'fa-folder' }; saveMetadataToCloud();
-            closeModal('input-modal'); renderFoldersView();
-        };
-
-        const openNewSetModal = () => { document.getElementById('input-modal-title').innerText = "New Set Name"; document.getElementById('input-modal-field').value = ''; document.getElementById('input-modal-submit').onclick = createSet; document.getElementById('input-modal').classList.remove('hidden'); document.getElementById('input-modal-field').focus(); };
-        const createSet = () => {
-            let name = document.getElementById('input-modal-field').value.trim();
-            if (!name) return showAlert("Please enter a name.");
-            if (folders[currentPath] && folders[currentPath].includes(name)) return showAlert("A set with this name already exists here.");
-            if(!folders[currentPath]) folders[currentPath] = [];
-            folders[currentPath].push(name);
-            let fullSetName = currentPath === '_root' ? name : `${currentPath}/${name}`;
-            setMeta[fullSetName] = { color: 'slate', icon: 'fa-layer-group' }; saveMetadataToCloud();
-            closeModal('input-modal'); openSetDetail(name);
-        };
-
-        const openEditItemModal = (type, oldName, parentPath) => {
-            editingItemType = type; editingItemOldName = oldName; editingItemParentPath = parentPath;
-            let fullPath = type === 'folder' ? (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`) : (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`);
-            document.getElementById('edit-item-title').innerText = type === 'folder' ? "Edit Folder" : "Edit Set";
-            document.getElementById('edit-item-name').value = oldName;
-            
-            let currentColor = 'slate';
-            let currentIcon = type === 'folder' ? 'fa-folder' : 'fa-layer-group';
-
-            if (type === 'folder' && folderMeta[fullPath]) {
-                currentColor = folderMeta[fullPath].color || 'slate';
-                currentIcon = folderMeta[fullPath].icon || 'fa-folder';
-            }
-            if (type === 'set' && setMeta[fullPath]) {
-                currentColor = setMeta[fullPath].color || 'slate';
-                currentIcon = setMeta[fullPath].icon || 'fa-layer-group';
-            }
-            
-            selectThemeColor(currentColor);
-            selectIcon(currentIcon);
-
-            document.getElementById('edit-item-submit').onclick = saveEditedItem;
-            document.getElementById('edit-item-modal').classList.remove('hidden');
-        };
-
-        const selectThemeColor = (color) => {
-            selectedThemeColor = color;
-            document.querySelectorAll('.theme-selector').forEach(btn => btn.classList.remove('ring-4', 'ring-offset-2', 'ring-indigo-500'));
-            document.getElementById(`theme-btn-${color}`).classList.add('ring-4', 'ring-offset-2', 'ring-indigo-500');
-        };
-
-        const selectIcon = (iconClass) => {
-            selectedIcon = iconClass;
-            document.querySelectorAll('.icon-selector').forEach(btn => {
-                btn.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
-                btn.classList.add('border-transparent', 'bg-slate-50', 'text-slate-600');
-            });
-            const activeBtn = document.getElementById(`icon-btn-${iconClass}`);
-            if(activeBtn) {
-                activeBtn.classList.remove('border-transparent', 'bg-slate-50', 'text-slate-600');
-                activeBtn.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
-            }
-        };
-
-        const saveEditedItem = () => {
-            let newName = document.getElementById('edit-item-name').value.trim();
-            if (!newName || newName.includes('/')) return showAlert("Invalid name. '/' is not allowed.");
-            let oldFullPath = editingItemParentPath === '_root' ? editingItemOldName : `${editingItemParentPath}/${editingItemOldName}`;
-            let newFullPath = editingItemParentPath === '_root' ? newName : `${editingItemParentPath}/${newName}`;
-
-            if (editingItemType === 'folder') {
-                if (newName !== editingItemOldName && folders[newFullPath]) return showAlert("A folder with this name already exists.");
-                if (newName !== editingItemOldName) {
-                    folders[newFullPath] = folders[oldFullPath]; delete folders[oldFullPath];
-                    folderMeta[newFullPath] = folderMeta[oldFullPath] || {}; delete folderMeta[oldFullPath];
-                    Object.keys(folders).forEach(k => {
-                        if (k.startsWith(oldFullPath + '/')) {
-                            let updatedChildPath = k.replace(oldFullPath, newFullPath);
-                            folders[updatedChildPath] = folders[k]; delete folders[k];
-                            if(folderMeta[k]) { folderMeta[updatedChildPath] = folderMeta[k]; delete folderMeta[k]; }
-                        }
-                    });
-                    deck.forEach(c => { if (c.category === oldFullPath || c.category.startsWith(oldFullPath + '/')) { c.category = c.category.replace(oldFullPath, newFullPath); saveCardToCloud(c); } });
-                    Object.keys(setMeta).forEach(k => { if (k.startsWith(oldFullPath + '/')) { let updatedSetPath = k.replace(oldFullPath, newFullPath); setMeta[updatedSetPath] = setMeta[k]; delete setMeta[k]; } });
-                }
-                folderMeta[newFullPath].color = selectedThemeColor;
-                folderMeta[newFullPath].icon = selectedIcon;
-            } else if (editingItemType === 'set') {
-                if (newName !== editingItemOldName && folders[editingItemParentPath].includes(newName)) return showAlert("A set with this name already exists here.");
-                if (newName !== editingItemOldName) {
-                    let idx = folders[editingItemParentPath].indexOf(editingItemOldName);
-                    folders[editingItemParentPath][idx] = newName;
-                    setMeta[newFullPath] = setMeta[oldFullPath] || {}; delete setMeta[oldFullPath];
-                    deck.forEach(c => { if (c.category === oldFullPath) { c.category = newFullPath; saveCardToCloud(c); } });
-                }
-                if(!setMeta[newFullPath]) setMeta[newFullPath] = {};
-                setMeta[newFullPath].color = selectedThemeColor;
-                setMeta[newFullPath].icon = selectedIcon;
-                if(selectedSet === editingItemOldName) selectedSet = newName;
-            }
-            saveMetadataToCloud(); closeModal('edit-item-modal');
-            if (selectedSet) openSetDetail(selectedSet); else renderFoldersView();
-        };
-
-        const openSetDetail = (setName) => {
-            selectedSet = setName;
-            let fullSetName = currentPath === '_root' ? setName : `${currentPath}/${setName}`;
-            
-            let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
-            document.getElementById('detail-set-icon').className = `fa-solid ${icon} text-slate-400 text-xl`;
-            document.getElementById('detail-set-title').querySelector('span').innerText = setName;
-
-            const setCards = deck.filter(c => c.category === fullSetName);
-            document.getElementById('detail-set-stats').innerText = `${setCards.length} Cards Total`;
-
-            let color = (setMeta[fullSetName] && setMeta[fullSetName].color) ? setMeta[fullSetName].color : 'slate';
-            let bgThemeMap = { 'slate': 'bg-slate-500', 'indigo': 'bg-indigo-500', 'rose': 'bg-rose-500', 'emerald': 'bg-emerald-500', 'amber': 'bg-amber-500' };
-            document.getElementById('set-detail-header-bg').className = `absolute inset-0 opacity-10 pointer-events-none transition-colors duration-300 ${bgThemeMap[color]}`;
-
-            const listEl = document.getElementById('detail-cards-list');
-            if (setCards.length === 0) {
-                listEl.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed font-medium text-sm">No cards yet. Add one above!</div>`;
-            } else {
-                listEl.innerHTML = setCards.map(c => {
-                    let previewText = c.type === 'occlusion' ? 'Image Occlusion Card' : (c.front.replace(/<[^>]*>?/gm, '') || 'Image Card');
-                    let backText = c.type === 'occlusion' ? 'Diagram Mask' : (c.back.replace(/<[^>]*>?/gm, '') || 'Image Card');
-                    let icon = c.type === 'occlusion' ? '<i class="fa-solid fa-image text-amber-500 mr-2"></i>' : '';
-                    return `
-                    <div onclick="startBrowseSession('card', '${c.id}')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center hover:border-indigo-300 hover:shadow transition-all group cursor-pointer">
-                        <div class="truncate flex-1 pr-4">
-                            <div class="text-sm font-bold text-slate-800 truncate flex items-center">${icon}${previewText}</div>
-                            <div class="text-xs text-slate-400 truncate mt-0.5">${backText}</div>
-                        </div>
-                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="event.stopPropagation(); openEditCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="event.stopPropagation(); softDeleteCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-            switchView('set-detail');
-        };
-
-        const openMoveModal = () => {
-            let html = `<label class="flex items-center gap-2 p-2 rounded hover:bg-indigo-50 cursor-pointer">
-                            <input type="radio" name="moveTarget" value="_root" class="text-indigo-600">
-                            <span class="text-sm font-bold"><i class="fa-solid fa-house text-slate-400 mr-1"></i> Main Page</span>
-                        </label>`;
-            Object.keys(folders).sort().forEach(k => {
-                if (k === '_root') return;
-                let indent = (k.split('/').length - 1) * 16;
-                html += `<label class="flex items-center gap-2 p-2 rounded hover:bg-indigo-50 cursor-pointer" style="padding-left: ${indent + 8}px">
-                            <input type="radio" name="moveTarget" value="${k}" class="text-indigo-600">
-                            <span class="text-sm font-bold text-slate-700"><i class="fa-solid fa-folder text-slate-300 mr-1"></i> ${k.split('/').pop()}</span>
-                        </label>`;
-            });
-            document.getElementById('move-folder-list').innerHTML = html;
-            document.getElementById('move-modal').classList.remove('hidden');
-        };
-
-        const executeMoveSet = () => {
-            const selected = document.querySelector('input[name="moveTarget"]:checked');
-            if (!selected) return showAlert("Please select a destination folder.");
-            const dest = selected.value;
-            if (dest === currentPath) return closeModal('move-modal'); 
-
-            let oldIdx = folders[currentPath].indexOf(selectedSet);
-            if (oldIdx > -1) folders[currentPath].splice(oldIdx, 1);
-            if(!folders[dest]) folders[dest] = [];
-            folders[dest].push(selectedSet);
-            
-            let oldFullPath = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
-            let newFullPath = dest === '_root' ? selectedSet : `${dest}/${selectedSet}`;
-            
-            deck.forEach(c => { if (c.category === oldFullPath) { c.category = newFullPath; saveCardToCloud(c); } });
-            if (setMeta[oldFullPath]) { setMeta[newFullPath] = setMeta[oldFullPath]; delete setMeta[oldFullPath]; }
-            saveMetadataToCloud(); closeModal('move-modal'); currentPath = dest; switchView('folders'); 
-        };
-
-        const openCustomStudyModal = () => {
-            let html = ''; let setsFound = false;
-            for (const [folderPath, sets] of Object.entries(folders)) {
-                if (sets.length === 0) continue;
-                setsFound = true;
-                let displayPath = folderPath === '_root' ? 'Main Page' : folderPath.replace(/\//g, ' > ');
-                html += `<div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-4 mb-2 px-1">${displayPath}</div>`;
-                sets.forEach(s => {
-                    let fullPath = folderPath === '_root' ? s : `${folderPath}/${s}`;
-                    html += `
-                    <label class="flex items-center gap-3 p-3 mb-1 rounded-xl border border-slate-100 bg-slate-50 hover:bg-amber-50 cursor-pointer group transition-colors">
-                        <input type="checkbox" value="${fullPath}" class="custom-study-checkbox w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer">
-                        <span class="text-sm font-bold text-slate-700 group-hover:text-amber-700 transition-colors">${s}</span>
-                    </label>`;
-                });
-            }
-            if (!setsFound) html = '<div class="text-sm text-slate-500 text-center py-6">No sets available.</div>';
-            document.getElementById('custom-study-list').innerHTML = html; document.getElementById('custom-study-modal').classList.remove('hidden');
-        };
-
-        const startCustomStudy = () => {
-            const checkboxes = document.querySelectorAll('.custom-study-checkbox:checked');
-            const selectedSets = Array.from(checkboxes).map(cb => cb.value);
-            if (selectedSets.length === 0) return showAlert("Please select at least one set.");
-            closeModal('custom-study-modal');
-            startStudySession('custom', selectedSets, 'study');
-        };
-
-        window.startBrowseSession = (triggerType, cardId) => {
-            startStudySession('set', cardId, 'browse', triggerType);
-        };
-
-        const startStudySession = (type = 'set', targetPath = null, mode = 'study', triggerType = 'set') => {
-            sessionMode = mode;
-            if(type === 'set' && triggerType === 'set') targetPath = targetPath || (currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`);
-            
-            let activeDeck = [];
-            
-            if (mode === 'browse' && triggerType === 'card') {
-                let clickedCard = deck.find(c => c.id === targetPath);
-                if(clickedCard) {
-                    activeDeck = deck.filter(c => c.category === clickedCard.category);
-                    currentCardIndex = activeDeck.findIndex(c => c.id === clickedCard.id);
-                } else return;
-                activeStudyTarget = { type: 'set', path: clickedCard.category };
-            } else {
-                if (type === 'all') activeDeck = deck;
-                else if (type === 'folder') activeDeck = getCardsInFolderTree(targetPath);
-                else if (type === 'custom') activeDeck = deck.filter(c => targetPath.includes(c.category));
-                else activeDeck = deck.filter(c => c.category === targetPath);
-                activeStudyTarget = { type, path: targetPath };
-                currentCardIndex = 0;
-            }
-
-            if (activeDeck.length === 0) return showAlert("There are no cards here.");
-
-            if (mode === 'study') {
-                document.getElementById('study-stats-header').classList.remove('hidden');
-                document.getElementById('browse-stats-header').classList.add('hidden');
-                document.getElementById('grading-buttons').classList.remove('hidden');
-                document.getElementById('browse-controls').classList.add('hidden');
-                
-                let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
-                if (dueCards.length === 0) return showAlert("You're all caught up! No cards due right now.");
-                
-                document.getElementById('study-back-text').innerText = type === 'custom' ? 'End Custom Study' : 'End Session';
-                switchView('study');
-                pickNextCard();
-            } else {
-                // BROWSE MODE
-                document.getElementById('study-stats-header').classList.add('hidden');
-                document.getElementById('browse-stats-header').classList.remove('hidden');
-                document.getElementById('grading-buttons').classList.add('hidden');
-                document.getElementById('browse-controls').classList.remove('hidden');
-                document.getElementById('study-back-text').innerText = 'Back to Set';
-                
-                browseCardsList = activeDeck;
-                document.getElementById('browse-total-num').innerText = browseCardsList.length;
-                switchView('study');
-                renderStudyCard(browseCardsList[currentCardIndex]);
-            }
-        };
-
-        const pickNextCard = () => {
-            let activeDeck = [];
-            if (activeStudyTarget.type === 'all') activeDeck = deck;
-            else if (activeStudyTarget.type === 'folder') activeDeck = getCardsInFolderTree(activeStudyTarget.path);
-            else if (activeStudyTarget.type === 'custom') activeDeck = deck.filter(c => activeStudyTarget.path.includes(c.category));
-            else activeDeck = deck.filter(c => c.category === activeStudyTarget.path);
-
-            let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
-
-            if (dueCards.length === 0) {
-                showAlert("Session complete! You're caught up.");
-                goBackFromStudy(); return;
-            }
-
-            document.getElementById('count-due').innerText = dueCards.length;
-            document.getElementById('count-new').innerText = dueCards.filter(c => c.reps === 0).length;
-
-            dueCards.sort(() => Math.random() - 0.5); 
-            const currentCard = dueCards[0];
-            currentCardIndex = deck.findIndex(c => c.id === currentCard.id);
-            renderStudyCard(currentCard);
-        };
-
-        const renderStudyCard = (card) => {
-            document.getElementById('flashcard-inner').classList.remove('flipped');
-            if(sessionMode === 'study') document.getElementById('grading-buttons').classList.add('hidden');
-            
-            if(sessionMode === 'browse') {
-                document.getElementById('browse-current-num').innerText = currentCardIndex + 1;
-            }
-
-            const frontEl = document.getElementById('flashcard-front');
-            const backEl = document.getElementById('flashcard-back');
-            const footFrontEl = document.getElementById('flashcard-footnote-front');
-            const footBackEl = document.getElementById('flashcard-footnote');
-            
-            footFrontEl.classList.add('hidden');
-            footBackEl.classList.add('hidden');
-
-            if (card.type === 'occlusion') {
-                let imgHtml = `<div class="relative inline-block max-w-full"><img src="${card.imageFront}" class="max-h-64 rounded-lg">`;
-                let frontMasks = card.masks.map((m, i) => {
-                    let isTarget = (i === card.targetIndex);
-                    return `<div class="occlusion-mask ${isTarget ? 'target-mask' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;">
-                                ${isTarget ? '<div class="absolute inset-0 flex items-center justify-center text-white/90 font-bold">?</div>' : ''}
-                            </div>`;
-                }).join('');
-                frontEl.innerHTML = `<div class="text-sm font-bold text-amber-500 mb-2 uppercase tracking-wide">Identify the highlighted area</div>` + imgHtml + frontMasks + `</div>`;
-
-                let backMasks = card.masks.map((m, i) => `<div class="occlusion-mask ${i === card.targetIndex ? 'revealed' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;"></div>`).join('');
-                backEl.innerHTML = imgHtml + backMasks + `</div>`;
-
-            } else {
-                let fHtml = card.front || '';
-                if (card.imageFront) fHtml += `<br><img src="${card.imageFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
-                if (card.drawingFront) fHtml += `<br><img src="${card.drawingFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
-                frontEl.innerHTML = fHtml;
-
-                let bHtml = card.back || '';
-                if (card.imageBack) bHtml += `<br><img src="${card.imageBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
-                if (card.drawingBack) bHtml += `<br><img src="${card.drawingBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
-                backEl.innerHTML = bHtml;
-
-                if (card.footnoteFront) {
-                    footFrontEl.innerText = card.footnoteFront;
-                    footFrontEl.classList.remove('hidden');
-                }
-                
-                let backFootnote = card.footnoteBack || card.footnote;
-                if (backFootnote) {
-                    footBackEl.innerText = backFootnote;
-                    footBackEl.classList.remove('hidden');
-                }
-            }
-        };
-
-        const flipCard = () => {
-            const inner = document.getElementById('flashcard-inner');
-            if(sessionMode === 'study') {
-                inner.classList.add('flipped');
-                document.getElementById('grading-buttons').classList.remove('hidden');
-            } else {
-                inner.classList.toggle('flipped');
-            }
-        };
-
-        const rateCard = (quality) => {
-            let card = deck[currentCardIndex];
-            if (quality < 3) { card.reps = 0; card.interval = 1; } 
-            else {
-                if (card.reps === 0) card.interval = 1; else if (card.reps === 1) card.interval = 6; else card.interval = Math.round(card.interval * card.ease);
-                card.reps += 1;
-            }
-            card.ease = card.ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-            if (card.ease < 1.3) card.ease = 1.3;
-            const DAY_MS = 24 * 60 * 60 * 1000;
-            const jitter = Math.random() * (0.1 * DAY_MS);
-            card.nextReview = Date.now() + (card.interval * DAY_MS) + jitter;
-            
-            saveCardToCloud(card); pickNextCard();
-        };
-
-        window.navigateBrowse = (direction) => {
-            currentCardIndex += direction;
-            if (currentCardIndex < 0) currentCardIndex = browseCardsList.length - 1;
-            if (currentCardIndex >= browseCardsList.length) currentCardIndex = 0;
-            renderStudyCard(browseCardsList[currentCardIndex]);
-        };
-
-        const goBackFromStudy = () => {
-            if (activeStudyTarget.type === 'set' && selectedSet) openSetDetail(selectedSet);
-            else switchView('folders'); 
-        };
-
-        const readCardAloud = (side) => {
-            if (!window.speechSynthesis) return showAlert("Text-to-speech not supported.");
-            let card = sessionMode === 'study' ? deck[currentCardIndex] : browseCardsList[currentCardIndex];
-            if(card.type === 'occlusion') return showAlert("No text to read on diagram cards.");
-            let text = side === 'front' ? card.front : card.back;
-            let stripped = text.replace(/<[^>]*>?/gm, ''); 
-            window.speechSynthesis.speak(new SpeechSynthesisUtterance(stripped));
-        };
-
-        const editCurrentSet = () => openEditItemModal('set', selectedSet, currentPath);
-        
-        const deleteCurrentSet = () => softDeleteSet(selectedSet, currentPath);
-
-        const softDeleteSet = (setName, parentPath) => {
-            if (!confirm(`Move set '${setName}' to the Recycle Bin?`)) return;
-            let fullPath = parentPath === '_root' ? setName : `${parentPath}/${setName}`;
-            
-            let idx = folders[parentPath].indexOf(setName);
-            if (idx > -1) folders[parentPath].splice(idx, 1);
-            
-            let setCards = deck.filter(c => c.category === fullPath);
-            setCards.forEach(c => deleteCardFromCloud(c.id));
-            
-            saveTrashToCloud({
-                id: generateId(), type: 'set', name: setName, parentPath: parentPath,
-                fullPath: fullPath, meta: setMeta[fullPath] || {}, cards: setCards, deletedAt: Date.now()
-            });
-            
-            delete setMeta[fullPath];
-            selectedSet = null;
-            saveMetadataToCloud();
-            navigateUp();
-        };
-
-        const softDeleteCard = (cardId) => {
-            let card = deck.find(c => c.id === cardId);
-            if(!card) return;
-            deleteCardFromCloud(cardId);
-            saveTrashToCloud({ id: generateId(), type: 'card', name: "Flashcard", data: card, deletedAt: Date.now() });
-        };
-
-        const renderRecycleBin = () => {
-            const listEl = document.getElementById('recycle-bin-list');
-            if (trash.length === 0) {
-                listEl.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed font-medium text-sm">Recycle Bin is empty.</div>`; return;
-            }
-            listEl.innerHTML = trash.map(item => {
-                let icon = item.type === 'set' ? 'fa-layer-group text-indigo-500' : 'fa-note-sticky text-slate-500';
-                let details = item.type === 'set' ? `${item.cards.length} Cards` : (item.data.front.replace(/<[^>]*>?/gm, '').substring(0, 40) + '...');
-                return `
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center group">
-                    <div class="flex items-center gap-3 truncate flex-1 pr-4">
-                        <div class="w-10 h-10 shrink-0 rounded-lg bg-slate-50 flex items-center justify-center"><i class="fa-solid ${icon}"></i></div>
-                        <div class="truncate">
-                            <div class="text-sm font-bold text-slate-800 truncate">${item.type === 'set' ? item.name : 'Deleted Card'}</div>
-                            <div class="text-xs text-slate-400 truncate mt-0.5">${details}</div>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="restoreItem('${item.id}')" class="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors">Restore</button>
-                        <button onclick="hardDeleteItem('${item.id}')" class="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-bold transition-colors">Delete</button>
-                    </div>
-                </div>`;
-            }).join('');
-        };
-
-        const restoreItem = (trashId) => {
-            let item = trash.find(t => t.id === trashId); if(!item) return;
-            deleteTrashFromCloud(trashId);
-            if (item.type === 'set') {
-                if(!folders[item.parentPath]) folders[item.parentPath] = [];
-                if(!folders[item.parentPath].includes(item.name)) folders[item.parentPath].push(item.name);
-                if(item.meta) setMeta[item.fullPath] = item.meta;
-                saveMetadataToCloud(); item.cards.forEach(c => saveCardToCloud(c));
-            } else if (item.type === 'card') { saveCardToCloud(item.data); }
-        };
-
-        const hardDeleteItem = (trashId) => { if(confirm("Permanently delete this item? This cannot be undone.")) deleteTrashFromCloud(trashId); };
-        const emptyRecycleBin = () => { if(confirm("Permanently delete ALL items in the Recycle Bin?")) { trash.forEach(t => deleteTrashFromCloud(t.id)); } };
-
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // --- IMAGE COMPRESSION HELPER ---
+        // Prevents Firestore from choking on massive images
         const compressImage = (file, callback) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let w = img.width, h = img.height;
-                    const maxW = 800, maxH = 800;
-                    if (w > maxW || h > maxH) { const ratio = Math.min(maxW/w, maxH/h); w *= ratio; h *= ratio; }
-                    canvas.width = w; canvas.height = h;
-                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
-                    callback(canvas.toDataURL('image/jpeg', 0.6)); 
+                    let { width, height } = img;
+                    const max = 800;
+                    if(width > max || height > max) {
+                        if(width > height) { height *= max/width; width = max; }
+                        else { width *= max/height; height = max; }
+                    }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/jpeg', 0.8));
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         };
 
-        const handleImageUpload = (input, previewId) => {
-            if (input.files && input.files[0]) {
-                compressImage(input.files[0], (base64) => {
-                    const previewDiv = document.getElementById(previewId);
-                    previewDiv.querySelector('img').src = base64; previewDiv.classList.remove('hidden');
-                });
-            }
-        };
+        // --- AUTH SCREEN ---
+        const AuthScreen = () => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
 
-        const clearUploadedImage = (previewId) => {
-            const previewDiv = document.getElementById(previewId);
-            previewDiv.querySelector('img').src = ''; previewDiv.classList.add('hidden');
-        };
-
-        const formatText = (command, value = null) => { document.execCommand(command, false, value); };
-
-        const openCardEditor = () => {
-            editingCardId = null;
-            document.getElementById('editor-title').innerText = "Add New Card";
-            document.getElementById('editor-front').innerHTML = ''; document.getElementById('editor-back').innerHTML = '';
-            document.getElementById('editor-draw-front').value = ''; document.getElementById('editor-draw-back').value = '';
-            document.getElementById('editor-footnote-front').value = ''; document.getElementById('editor-footnote').value = '';
-            clearUploadedImage('preview-front'); clearUploadedImage('preview-back');
-            document.getElementById('editor-modal').classList.remove('hidden'); document.getElementById('editor-front').focus();
-        };
-
-        const openEditCard = (id) => {
-            const card = deck.find(c => c.id === id); if (!card) return;
-            if (card.type === 'occlusion') return showAlert("Diagram cards cannot be edited yet. Please delete and recreate.");
-            editingCardId = id;
-            document.getElementById('editor-title').innerText = "Edit Card";
-            document.getElementById('editor-front').innerHTML = card.front; document.getElementById('editor-back').innerHTML = card.back;
-            document.getElementById('editor-draw-front').value = card.drawingFront || ''; document.getElementById('editor-draw-back').value = card.drawingBack || '';
-            document.getElementById('editor-footnote-front').value = card.footnoteFront || '';
-            document.getElementById('editor-footnote').value = card.footnoteBack || card.footnote || '';
-            
-            if(card.imageFront) { document.getElementById('preview-front').querySelector('img').src = card.imageFront; document.getElementById('preview-front').classList.remove('hidden'); } else clearUploadedImage('preview-front');
-            if(card.imageBack) { document.getElementById('preview-back').querySelector('img').src = card.imageBack; document.getElementById('preview-back').classList.remove('hidden'); } else clearUploadedImage('preview-back');
-            document.getElementById('editor-modal').classList.remove('hidden');
-        };
-
-        const saveCard = () => {
-            const front = document.getElementById('editor-front').innerHTML.trim(); const back = document.getElementById('editor-back').innerHTML.trim();
-            const drawFront = document.getElementById('editor-draw-front').value; const drawBack = document.getElementById('editor-draw-back').value;
-            const footnoteFront = document.getElementById('editor-footnote-front').value.trim();
-            const footnoteBack = document.getElementById('editor-footnote').value.trim();
-            let imgFront = document.getElementById('preview-front').classList.contains('hidden') ? '' : document.getElementById('preview-front').querySelector('img').src;
-            let imgBack = document.getElementById('preview-back').classList.contains('hidden') ? '' : document.getElementById('preview-back').querySelector('img').src;
-
-            if (!front && !imgFront && !drawFront) return showAlert("Front side cannot be totally empty.");
-            let fullSetName = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
-            
-            let cardObj;
-            if (editingCardId) {
-                cardObj = deck.find(c => c.id === editingCardId);
-                Object.assign(cardObj, { front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack });
-            } else {
-                cardObj = { id: generateId(), type: 'standard', category: fullSetName, front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack, reps: 0, interval: 1, ease: 2.5, nextReview: 0 };
-            }
-            saveCardToCloud(cardObj); closeModal('editor-modal');
-        };
-
-        const initCanvas = () => {
-            canvas = document.getElementById('draw-canvas'); if(!canvas) return;
-            ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const getCanvasPos = (e) => {
-                let rect = canvas.getBoundingClientRect();
-                return {
-                    x: (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left,
-                    y: (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top
-                };
-            };
-
-            const startPos = (e) => { 
-                if(drawTool === 'text') {
-                    let text = document.getElementById('draw-text-val').value;
-                    if(text) {
-                        let pos = getCanvasPos(e);
-                        let size = parseInt(document.getElementById('brush-size').value) * 4 + 14;
-                        ctx.font = `bold ${size}px Inter, sans-serif`;
-                        ctx.fillStyle = brushColor;
-                        ctx.fillText(text, pos.x, pos.y);
-                    }
-                    return;
-                }
-                isDrawing = true; 
-                draw(e); 
-            };
-            const endPos = () => { isDrawing = false; ctx.beginPath(); };
-            const draw = (e) => {
-                if (!isDrawing || drawTool !== 'brush') return;
+            const handleSubmit = async (e) => {
                 e.preventDefault();
-                let pos = getCanvasPos(e);
-                ctx.lineWidth = document.getElementById('brush-size').value; ctx.lineCap = 'round'; ctx.strokeStyle = brushColor;
-                ctx.lineTo(pos.x, pos.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+                setError(''); setLoading(true);
+                try {
+                    if (isLogin) await auth.signInWithEmailAndPassword(email, password);
+                    else await auth.createUserWithEmailAndPassword(email, password);
+                } catch (err) { setError(err.message); }
+                setLoading(false);
             };
 
-            canvas.addEventListener('mousedown', startPos); canvas.addEventListener('mouseup', endPos); canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('touchstart', startPos, {passive: false}); canvas.addEventListener('touchend', endPos); canvas.addEventListener('touchmove', draw, {passive: false});
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
+                        <div className="flex flex-col items-center mb-8">
+                            <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-4">
+                                <i className="fa-solid fa-bolt"></i>
+                            </div>
+                            <h1 className="text-2xl font-bold text-slate-800">Lumina Flash</h1>
+                            <p className="text-slate-500 text-sm mt-2 text-center">Sign in to sync your neuroscience and biology decks globally.</p>
+                        </div>
+                        {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm mb-4 border border-rose-100">{error}</div>}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
+                                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition" />
+                            </div>
+                            <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-bold p-3 rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 shadow-md">
+                                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+                            </button>
+                        </form>
+                        <div className="mt-6 text-center text-sm text-slate-500">
+                            {isLogin ? "Don't have an account? " : "Already have an account? "}
+                            <button onClick={() => setIsLogin(!isLogin)} className="text-indigo-600 font-bold hover:underline">
+                                {isLogin ? 'Sign up' : 'Sign in'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
-        window.setDrawTool = (tool) => {
-            drawTool = tool;
-            document.getElementById('tool-btn-brush').classList.remove('tool-active', 'bg-slate-100');
-            document.getElementById('tool-btn-text').classList.remove('tool-active', 'bg-slate-100');
-            document.getElementById(`tool-btn-${tool}`).classList.add('tool-active');
+        // --- CARD EDITOR MODAL ---
+        const CardEditorModal = ({ card, setId, onClose, userId }) => {
+            const frontRef = useRef(null);
+            const backRef = useRef(null);
             
-            const textInput = document.getElementById('draw-text-val');
-            if(tool === 'text') {
-                textInput.classList.remove('hidden'); textInput.focus();
-                canvas.style.cursor = 'text';
-            } else {
-                textInput.classList.add('hidden');
-                canvas.style.cursor = 'crosshair';
-            }
-        };
+            const [frontContent, setFrontContent] = useState(card ? card.front : '');
+            const [backContent, setBackContent] = useState(card ? card.back : '');
+            const [frontImage, setFrontImage] = useState(card ? card.frontImage : null);
+            const [backImage, setBackImage] = useState(card ? card.backImage : null);
+            const [frontFootnote, setFrontFootnote] = useState(card?.frontFootnote || '');
+            const [footnote, setFootnote] = useState(card?.footnote || '');
+            const [loading, setLoading] = useState(false);
 
-        window.drawInsertImage = (input) => {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        let scale = Math.min(canvas.width / img.width, canvas.height / img.height) * 0.9;
-                        let w = img.width * scale; let h = img.height * scale;
-                        let x = (canvas.width - w) / 2; let y = (canvas.height - h) / 2;
-                        ctx.drawImage(img, x, y, w, h);
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(input.files[0]);
-                input.value = ""; // Reset input
-            }
-        };
+            useEffect(() => {
+                if(frontRef.current && !frontRef.current.innerHTML) frontRef.current.innerHTML = frontContent;
+                if(backRef.current && !backRef.current.innerHTML) backRef.current.innerHTML = backContent;
+            }, []);
 
-        const openDrawing = (target) => {
-            drawingTarget = target;
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            let existing = document.getElementById(`editor-draw-${target}`).value;
-            if (existing) { let img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = existing; }
-            setDrawTool('brush');
-            document.getElementById('drawing-modal').classList.remove('hidden');
-        };
+            const exec = (cmd) => { document.execCommand(cmd, false, null); };
 
-        const setBrush = (c) => brushColor = c;
-        const clearCanvas = () => { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); };
-        const saveDrawing = () => { document.getElementById(`editor-draw-${drawingTarget}`).value = canvas.toDataURL(); closeModal('drawing-modal'); };
-
-        const openDiagramMode = () => {
-            diagramBase64 = ""; occlusionMasks = [];
-            document.getElementById('diagram-empty-state').classList.remove('hidden'); document.getElementById('diagram-container').classList.add('hidden');
-            document.getElementById('diagram-masks-layer').innerHTML = ''; document.getElementById('mask-count').innerText = '0';
-            document.getElementById('diagram-modal').classList.remove('hidden');
-        };
-
-        const handleDiagramUpload = (input) => {
-            if (input.files && input.files[0]) {
-                compressImage(input.files[0], (base64) => {
-                    diagramBase64 = base64; document.getElementById('diagram-image').src = base64;
-                    document.getElementById('diagram-empty-state').classList.add('hidden'); document.getElementById('diagram-container').classList.remove('hidden');
-                    occlusionMasks = []; renderMasks();
-                });
-            }
-        };
-
-        const getPos = (e) => {
-            const container = document.getElementById('diagram-container'); const rect = container.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: ((clientX - rect.left) / rect.width) * 100, y: ((clientY - rect.top) / rect.height) * 100 };
-        };
-
-        const startMaskDraw = (e) => {
-            if(!diagramBase64) return; e.preventDefault(); isMaskDrawing = true;
-            const pos = getPos(e); maskStartX = pos.x; maskStartY = pos.y;
-            const drawBox = document.getElementById('current-draw-mask');
-            drawBox.style.left = maskStartX + '%'; drawBox.style.top = maskStartY + '%'; drawBox.style.width = '0%'; drawBox.style.height = '0%'; drawBox.classList.remove('hidden');
-        };
-
-        const drawMask = (e) => {
-            if (!isMaskDrawing) return; e.preventDefault();
-            const pos = getPos(e); const drawBox = document.getElementById('current-draw-mask');
-            drawBox.style.left = Math.min(maskStartX, pos.x) + '%'; drawBox.style.top = Math.min(maskStartY, pos.y) + '%';
-            drawBox.style.width = Math.abs(pos.x - maskStartX) + '%'; drawBox.style.height = Math.abs(pos.y - maskStartY) + '%';
-        };
-
-        const endMaskDraw = (e) => {
-            if (!isMaskDrawing) return; isMaskDrawing = false;
-            const drawBox = document.getElementById('current-draw-mask'); drawBox.classList.add('hidden');
-            if(parseFloat(drawBox.style.width) > 2 && parseFloat(drawBox.style.height) > 2) {
-                occlusionMasks.push({ left: parseFloat(drawBox.style.left), top: parseFloat(drawBox.style.top), width: parseFloat(drawBox.style.width), height: parseFloat(drawBox.style.height) });
-                renderMasks();
-            }
-        };
-
-        const renderMasks = () => {
-            document.getElementById('diagram-masks-layer').innerHTML = occlusionMasks.map((m, i) => 
-                `<div class="occlusion-mask" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;">
-                    <div class="absolute inset-0 flex items-center justify-center text-white/50 font-bold text-xs">${i+1}</div>
-                </div>`
-            ).join('');
-            document.getElementById('mask-count').innerText = occlusionMasks.length;
-        };
-
-        const clearDiagramMasks = () => { occlusionMasks = []; renderMasks(); };
-        const undoLastMask = () => { occlusionMasks.pop(); renderMasks(); };
-
-        const generateDiagramCards = () => {
-            if(!diagramBase64) return showAlert("Please upload a diagram first.");
-            if(occlusionMasks.length === 0) return showAlert("Please draw at least one mask over the image.");
-            let fullSetName = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
-            occlusionMasks.forEach((mask, index) => {
-                saveCardToCloud({ id: generateId(), type: 'occlusion', category: fullSetName, imageFront: diagramBase64, masks: occlusionMasks, targetIndex: index, reps: 0, interval: 1, ease: 2.5, nextReview: 0 });
-            });
-            closeModal('diagram-modal'); showAlert(`Generated ${occlusionMasks.length} diagram cards!`);
-        };
-
-        const exportDeck = () => {
-            const data = JSON.stringify({deck, folders, folderMeta, setMeta}, null, 2);
-            navigator.clipboard.writeText(data).then(() => showAlert("Backup copied to clipboard!"))
-                .catch(() => { document.getElementById('import-json-text').value = data; showAlert("Copy failed. JSON displayed in text box."); });
-        };
-
-        const importDeck = () => {
-            const jsonStr = document.getElementById('import-json-text').value.trim();
-            if (!jsonStr) return showAlert("Please paste JSON first.");
-            try {
-                const parsed = JSON.parse(jsonStr);
-                let importDeck = Array.isArray(parsed) ? parsed : parsed.deck;
-                
-                if (parsed.folders) {
-                    for(const [path, sets] of Object.entries(parsed.folders)) {
-                        if(!folders[path]) folders[path] = [];
-                        sets.forEach(s => { if(!folders[path].includes(s)) folders[path].push(s); });
-                    }
+            const handleImage = (e, setImgObj) => {
+                if (e.target.files && e.target.files[0]) {
+                    compressImage(e.target.files[0], (base64) => setImgObj(base64));
                 }
-                if (parsed.folderMeta) Object.assign(folderMeta, parsed.folderMeta);
-                if (parsed.setMeta) Object.assign(setMeta, parsed.setMeta);
-                saveMetadataToCloud();
+            };
+
+            const saveCard = async () => {
+                const finalFront = frontRef.current.innerHTML.trim();
+                if (!finalFront) return alert("Front side cannot be empty.");
                 
-                let addedCount = 0;
-                importDeck.forEach(c => {
-                    let found = false;
-                    for (let sets of Object.values(folders)) {
-                        let shortName = c.category.split('/').pop();
-                        if (sets.includes(shortName)) { found = true; break; }
+                setLoading(true);
+                const cardData = {
+                    setId: card ? card.setId : setId,
+                    front: finalFront,
+                    back: backRef.current.innerHTML.trim(),
+                    frontImage, backImage, frontFootnote, footnote,
+                    updatedAt: Date.now()
+                };
+
+                try {
+                    if (card) {
+                        await db.collection('users').doc(userId).collection('cards').doc(card.id).update(cardData);
+                    } else {
+                        cardData.reps = 0; cardData.interval = 1; cardData.ease = 2.5; cardData.nextReview = Date.now();
+                        await db.collection('users').doc(userId).collection('cards').add(cardData);
                     }
-                    if (!found) folders['_root'].push(c.category);
-                    if(!c.id) c.id = generateId();
-                    saveCardToCloud(c); addedCount++;
+                    onClose();
+                } catch(e) { alert("Error saving."); setLoading(false); }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
+                            <h2 className="font-bold text-slate-800">{card ? 'Edit Card' : 'New Card'}</h2>
+                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500 transition"><i className="fa-solid fa-xmark"></i></button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                            {/* FRONT OF CARD */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Front (Question)</label>
+                                    <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                                        <button onClick={()=>exec('bold')} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm font-bold text-slate-600">B</button>
+                                        <button onClick={()=>exec('italic')} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm italic text-slate-600">I</button>
+                                        <button onClick={()=>exec('underline')} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm underline text-slate-600">U</button>
+                                    </div>
+                                </div>
+                                <div 
+                                    ref={frontRef} contentEditable 
+                                    className="rich-editor rich-text-content w-full min-h-[100px] p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:bg-white transition" 
+                                    data-placeholder="Type question or concept here..."
+                                ></div>
+                                
+                                <div className="flex items-center gap-3">
+                                    <label className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-600 cursor-pointer transition">
+                                        <i className="fa-solid fa-image"></i> Attach Image
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e)=>handleImage(e, setFrontImage)} />
+                                    </label>
+                                    {frontImage && (
+                                        <div className="relative group">
+                                            <img src={frontImage} className="h-10 rounded border border-slate-300" />
+                                            <button onClick={()=>setFrontImage(null)} className="absolute -top-2 -right-2 bg-rose-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center shadow-sm hover:scale-110"><i className="fa-solid fa-times"></i></button>
+                                        </div>
+                                    )}
+                                </div>
+                                <input type="text" value={frontFootnote} onChange={e=>setFrontFootnote(e.target.value)} placeholder="Front Footnote (e.g., hint, source, or context)..." className="w-full p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-sm outline-none focus:border-amber-400" />
+                            </div>
+
+                            <hr className="border-slate-100" />
+
+                            {/* BACK OF CARD */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Back (Answer)</label>
+                                    <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                                        <button onClick={()=>exec('bold')} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm font-bold text-slate-600">B</button>
+                                        <button onClick={()=>exec('italic')} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm italic text-slate-600">I</button>
+                                        <button onClick={()=>exec('underline')} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm underline text-slate-600">U</button>
+                                    </div>
+                                </div>
+                                <div 
+                                    ref={backRef} contentEditable 
+                                    className="rich-editor rich-text-content w-full min-h-[100px] p-4 bg-indigo-50 border border-indigo-100 rounded-xl outline-none focus:border-indigo-400 focus:bg-white transition" 
+                                    data-placeholder="Type answer or explanation here..."
+                                ></div>
+                                
+                                <div className="flex items-center gap-3">
+                                    <label className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-600 cursor-pointer transition">
+                                        <i className="fa-solid fa-image"></i> Attach Image
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e)=>handleImage(e, setBackImage)} />
+                                    </label>
+                                    {backImage && (
+                                        <div className="relative group">
+                                            <img src={backImage} className="h-10 rounded border border-slate-300" />
+                                            <button onClick={()=>setBackImage(null)} className="absolute -top-2 -right-2 bg-rose-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center shadow-sm hover:scale-110"><i className="fa-solid fa-times"></i></button>
+                                        </div>
+                                    )}
+                                </div>
+                                <input type="text" value={footnote} onChange={e=>setFootnote(e.target.value)} placeholder="Back Footnote (e.g., elaborative link, 'Why?')..." className="w-full p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl text-sm outline-none focus:border-emerald-400" />
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                            <button onClick={onClose} className="px-5 py-2 font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition">Cancel</button>
+                            <button onClick={saveCard} disabled={loading} className="px-5 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow transition disabled:opacity-50">
+                                {loading ? 'Saving...' : 'Save Card'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 3D CARD FACE (Handles Text/Image Layout) ---
+        const CardFace = ({ isFront, card }) => {
+            const content = isFront ? card.front : card.back;
+            const image = isFront ? card.frontImage : card.backImage;
+            const foot = isFront ? card.frontFootnote : card.footnote;
+            
+            return (
+                <div className={`absolute inset-0 w-full h-full backface-hidden flex flex-col rounded-3xl shadow-xl border border-slate-200 bg-white p-6 md:p-8 ${!isFront ? '[transform:rotateY(180deg)]' : ''}`}>
+                    
+                    {/* Header Badge */}
+                    <div className="flex justify-between items-start shrink-0 mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                            {isFront ? 'Question' : 'Answer'}
+                        </span>
+                    </div>
+
+                    {/* Content Area - Safe Scrolling without Top Clipping */}
+                    <div className="flex-1 w-full overflow-y-auto custom-scrollbar relative">
+                        <div className="grid place-items-center min-h-full py-4">
+                            <div className="flex flex-col items-center gap-6 w-full">
+                                {content && (
+                                    <div className="rich-text-content w-full text-center text-xl md:text-2xl font-medium text-slate-800"
+                                         dangerouslySetInnerHTML={{ __html: content }}></div>
+                                )}
+                                {image && (
+                                    <img src={image} className="max-h-48 md:max-h-64 w-auto object-contain rounded-xl shadow-sm border border-slate-200" alt="Attachment" />
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="shrink-0 mt-4 flex flex-col items-center text-center">
+                        {foot && (
+                            <div className="text-sm font-medium text-slate-500 mb-3 border-t border-slate-100 pt-3 w-full">
+                                {foot}
+                            </div>
+                        )}
+                        <div className="text-[10px] font-bold tracking-widest uppercase text-slate-300">Tap to flip</div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- BROWSE MODE (No Grading, Just Viewing) ---
+        const BrowseView = ({ cards, setName, onBack }) => {
+            const [idx, setIdx] = useState(0);
+            const [showBack, setShowBack] = useState(false);
+            
+            if(cards.length === 0) return (
+                <div className="flex-1 flex flex-col items-center justify-center"><p className="text-slate-500">No cards to browse.</p><button onClick={onBack} className="mt-4 text-indigo-600 font-bold">Go Back</button></div>
+            );
+            
+            const next = () => { setIdx((i) => (i + 1) % cards.length); setShowBack(false); };
+            const prev = () => { setIdx((i) => (i - 1 + cards.length) % cards.length); setShowBack(false); };
+
+            return (
+                <div className="flex-1 flex flex-col p-4">
+                    <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-slate-100">
+                        <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2"><i className="fa-solid fa-arrow-left"></i> Back</button>
+                        <h2 className="font-bold text-slate-800 hidden sm:block">Browsing: {setName}</h2>
+                        <div className="text-sm font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">{idx + 1} / {cards.length}</div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-3xl mx-auto w-full">
+                        <div className="relative w-full aspect-[4/3] md:aspect-[16/10] max-h-[60vh] perspective-1000 cursor-pointer" onClick={() => setShowBack(!showBack)}>
+                            <div className={`w-full h-full relative transition-transform duration-500 transform-style-3d ${showBack ? '[transform:rotateY(180deg)]' : ''}`}>
+                                <CardFace isFront={true} card={cards[idx]} />
+                                <CardFace isFront={false} card={cards[idx]} />
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-4 mt-8 w-full max-w-xs">
+                            <button onClick={prev} className="flex-1 bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-50 shadow-sm"><i className="fa-solid fa-chevron-left"></i> Prev</button>
+                            <button onClick={next} className="flex-1 bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-50 shadow-sm">Next <i className="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- STUDY MODE (SM-2 Algorithm) ---
+        const StudyView = ({ cards, setName, onBack, userId, db }) => {
+            const dueCards = cards.filter(c => c.nextReview <= Date.now());
+            const [showBack, setShowBack] = useState(false);
+            
+            if(dueCards.length === 0) return (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                    <div className="text-6xl mb-4">🎉</div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">You're all caught up!</h2>
+                    <p className="text-slate-500 mb-6">Excellent work. The algorithm will bring cards back when you need them.</p>
+                    <button onClick={onBack} className="bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl shadow-md hover:bg-indigo-700 transition">Return to Dashboard</button>
+                </div>
+            );
+
+            const card = dueCards[0];
+
+            const handleGrade = async (grade) => {
+                let { reps, interval, ease } = card;
+                if (grade === 0) { // Hard
+                    reps = 0; interval = 1; ease = Math.max(1.3, ease - 0.2);
+                } else if (grade === 1) { // Good
+                    if (reps === 0) interval = 1; else if (reps === 1) interval = 6; else interval = Math.round(interval * ease);
+                    reps += 1;
+                } else if (grade === 2) { // Easy
+                    if (reps === 0) interval = 4; else if (reps === 1) interval = 10; else interval = Math.round(interval * ease * 1.3);
+                    ease += 0.15; reps += 1;
+                }
+                const jitter = Math.random() * 0.1 * interval; 
+                const finalInterval = interval + jitter;
+                const nextReview = Date.now() + (finalInterval * 24 * 60 * 60 * 1000);
+
+                setShowBack(false);
+                await db.collection('users').doc(userId).collection('cards').doc(card.id).update({ reps, interval, ease, nextReview });
+            };
+
+            return (
+                <div className="flex-1 flex flex-col p-4">
+                    <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-slate-100">
+                        <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2"><i className="fa-solid fa-arrow-left"></i> Back</button>
+                        <h2 className="font-bold text-slate-800 hidden sm:block">Studying: {setName}</h2>
+                        <div className="text-sm font-bold bg-orange-100 text-orange-600 px-3 py-1 rounded-full">{dueCards.length} Due</div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-3xl mx-auto w-full">
+                        <div className="relative w-full aspect-[4/3] md:aspect-[16/10] max-h-[60vh] perspective-1000 cursor-pointer" onClick={() => !showBack && setShowBack(true)}>
+                            <div className={`w-full h-full relative transition-transform duration-500 transform-style-3d ${showBack ? '[transform:rotateY(180deg)]' : ''}`}>
+                                <CardFace isFront={true} card={card} />
+                                <CardFace isFront={false} card={card} />
+                            </div>
+                        </div>
+                        
+                        <div className={`flex gap-3 mt-8 w-full max-w-md transition-opacity duration-300 ${showBack ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                            <button onClick={()=>handleGrade(0)} className="flex-1 bg-rose-100 hover:bg-rose-200 text-rose-700 py-3 rounded-xl font-bold shadow-sm transition">Hard <span className="block text-xs font-normal opacity-70">&lt;1d</span></button>
+                            <button onClick={()=>handleGrade(1)} className="flex-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 py-3 rounded-xl font-bold shadow-sm transition">Good <span className="block text-xs font-normal opacity-70">Normal</span></button>
+                            <button onClick={()=>handleGrade(2)} className="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 py-3 rounded-xl font-bold shadow-sm transition">Easy <span className="block text-xs font-normal opacity-70">Delay</span></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [currentFolderId, setCurrentFolderId] = useState(null);
+            const [studySetId, setStudySetId] = useState(null);
+            const [browseSetId, setBrowseSetId] = useState(null);
+            const [showCalendar, setShowCalendar] = useState(false);
+            
+            // Editor State
+            const [editingCard, setEditingCard] = useState(null);
+            const [newCardSetId, setNewCardSetId] = useState(null);
+
+            // Data State
+            const [folders, setFolders] = useState([]);
+            const [sets, setSets] = useState([]);
+            const [cards, setCards] = useState([]);
+
+            useEffect(() => {
+                const unsub = auth.onAuthStateChanged(u => {
+                    if (u && !u.isAnonymous) setUser(u);
+                    else setUser(null);
+                    setLoading(false);
                 });
-                document.getElementById('import-json-text').value = ''; showAlert(`Successfully imported ${addedCount} cards to Cloud!`);
-            } catch (e) { showAlert("Invalid JSON format."); }
+                return unsub;
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                const userRef = db.collection('users').doc(user.uid);
+                const unsubF = userRef.collection('folders').onSnapshot(s => setFolders(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const unsubS = userRef.collection('sets').onSnapshot(s => setSets(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                const unsubC = userRef.collection('cards').onSnapshot(s => setCards(s.docs.map(d => ({id: d.id, ...d.data()}))));
+                return () => { unsubF(); unsubS(); unsubC(); };
+            }, [user]);
+
+            if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><i className="fa-solid fa-spinner fa-spin text-4xl text-indigo-500"></i></div>;
+            if (!user) return <AuthScreen />;
+
+            // --- DELETION LOGIC (Recursive) ---
+            const deleteFolder = async (id) => {
+                if(!confirm("Permanently delete this folder and EVERYTHING inside it?")) return;
+                const userRef = db.collection('users').doc(user.uid);
+                await userRef.collection('folders').doc(id).delete();
+                const childSets = sets.filter(s => s.folderId === id);
+                for (const set of childSets) {
+                    await userRef.collection('sets').doc(set.id).delete();
+                    const childCards = cards.filter(c => c.setId === set.id);
+                    for (const card of childCards) await userRef.collection('cards').doc(card.id).delete();
+                }
+            };
+
+            const deleteSet = async (id) => {
+                if(!confirm("Permanently delete this set and all its cards?")) return;
+                const userRef = db.collection('users').doc(user.uid);
+                await userRef.collection('sets').doc(id).delete();
+                const childCards = cards.filter(c => c.setId === id);
+                for (const card of childCards) await userRef.collection('cards').doc(card.id).delete();
+            };
+
+            // --- CREATION LOGIC ---
+            const createFolder = async () => {
+                const name = prompt("Folder Name:");
+                if(!name) return;
+                const icon = prompt("Enter an emoji or short text for the icon (e.g., 🧠, 🧬, or leave blank):") || "📁";
+                await db.collection('users').doc(user.uid).collection('folders').add({ name, icon, parentId: currentFolderId, createdAt: Date.now() });
+            };
+
+            const createSet = async () => {
+                const name = prompt("Study Set Name:");
+                if(!name) return;
+                const icon = prompt("Enter an emoji for the icon (or leave blank):") || "📄";
+                await db.collection('users').doc(user.uid).collection('sets').add({ name, icon, folderId: currentFolderId, createdAt: Date.now() });
+            };
+
+            // --- CALENDAR LOGIC ---
+            const getCalendarStats = () => {
+                let today = 0, tomorrow = 0, future = 0;
+                const now = new Date();
+                const todayStr = now.toDateString();
+                const tom = new Date(now); tom.setDate(tom.getDate() + 1);
+                const tomStr = tom.toDateString();
+                
+                cards.forEach(c => {
+                    const rDate = new Date(c.nextReview);
+                    if (c.nextReview <= Date.now() || rDate.toDateString() === todayStr) today++;
+                    else if (rDate.toDateString() === tomStr) tomorrow++;
+                    else future++;
+                });
+                return { today, tomorrow, future };
+            };
+
+            // Views routing
+            if (studySetId) return <StudyView cards={cards.filter(c=>c.setId===studySetId)} setName={sets.find(s=>s.id===studySetId)?.name} onBack={()=>setStudySetId(null)} userId={user.uid} db={db} />;
+            if (browseSetId) return <BrowseView cards={cards.filter(c=>c.setId===browseSetId)} setName={sets.find(s=>s.id===browseSetId)?.name} onBack={()=>setBrowseSetId(null)} />;
+
+            const visFolders = folders.filter(f => f.parentId === currentFolderId);
+            const visSets = sets.filter(s => s.folderId === currentFolderId);
+            const stats = getCalendarStats();
+
+            return (
+                <div className="min-h-screen flex flex-col relative">
+                    {/* Top Nav */}
+                    <header className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shrink-0 z-20">
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentFolderId(null)}>
+                            <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow-sm"><i className="fa-solid fa-bolt"></i></div>
+                            <span className="text-xl font-bold text-slate-800 tracking-tight hidden sm:block">Lumina Flash</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button onClick={()=>setShowCalendar(!showCalendar)} className="text-slate-500 hover:text-indigo-600 text-xl relative">
+                                <i className="fa-solid fa-calendar-days"></i>
+                                {stats.today > 0 && <span className="absolute -top-1 -right-1.5 bg-rose-500 text-white text-[9px] font-bold px-1 rounded-full">{stats.today}</span>}
+                            </button>
+                            <div className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                                <i className="fa-solid fa-cloud-check mr-1"></i> <span className="hidden sm:inline">Synced</span>
+                            </div>
+                            <button onClick={()=>{if(confirm("Log out?")) auth.signOut();}} className="text-sm font-bold text-slate-400 hover:text-rose-500">Out</button>
+                        </div>
+                    </header>
+
+                    {/* Calendar Sidebar Drawer */}
+                    {showCalendar && (
+                        <div className="absolute right-0 top-14 bottom-0 w-72 bg-white border-l border-slate-200 shadow-2xl z-10 p-6 flex flex-col animate-[fadeIn_0.2s_ease-out]">
+                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><i className="fa-solid fa-chart-pie text-indigo-500"></i> Review Schedule</h3>
+                            <div className="space-y-4">
+                                <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 flex justify-between items-center">
+                                    <span className="font-bold text-rose-800">Due Today</span>
+                                    <span className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">{stats.today}</span>
+                                </div>
+                                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex justify-between items-center">
+                                    <span className="font-bold text-amber-800">Tomorrow</span>
+                                    <span className="bg-amber-400 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">{stats.tomorrow}</span>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex justify-between items-center">
+                                    <span className="font-bold text-slate-600">Future</span>
+                                    <span className="bg-slate-300 text-slate-600 text-xs font-bold px-2 py-1 rounded-full shadow-sm">{stats.future}</span>
+                                </div>
+                            </div>
+                            <div className="mt-auto pt-4 border-t border-slate-100 text-xs text-slate-400 leading-relaxed text-center">
+                                Lumina uses a custom SM-2 algorithm to predict when you are likely to forget a concept.
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Main Dashboard */}
+                    <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                            <div className="flex items-center text-sm font-bold text-slate-500 gap-2">
+                                <button onClick={() => setCurrentFolderId(null)} className="hover:text-indigo-600 flex items-center gap-1"><i className="fa-solid fa-home"></i> Home</button>
+                                {/* Breadcrumbs omitted for brevity in full monolithic view, but user can always click Home */}
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <button onClick={createFolder} className="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold hover:border-indigo-300 hover:text-indigo-600 shadow-sm transition"><i className="fa-solid fa-folder-plus mr-1"></i> New Folder</button>
+                                <button onClick={createSet} className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-sm transition"><i className="fa-solid fa-layer-group mr-1"></i> New Set</button>
+                            </div>
+                        </div>
+
+                        {(visFolders.length === 0 && visSets.length === 0) && (
+                            <div className="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
+                                <div className="text-4xl mb-4 opacity-50">📂</div>
+                                <h3 className="text-lg font-bold text-slate-700">Workspace Empty</h3>
+                                <p className="text-sm text-slate-500 mt-1">Create a folder or study set above.</p>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {visFolders.map(f => (
+                                <div key={f.id} onClick={()=>setCurrentFolderId(f.id)} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition cursor-pointer group flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 text-lg">{f.icon || '📁'}</div>
+                                        <h3 className="font-bold text-slate-800">{f.name}</h3>
+                                    </div>
+                                    <button onClick={(e)=>{e.stopPropagation(); deleteFolder(f.id);}} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition p-2"><i className="fa-solid fa-trash"></i></button>
+                                </div>
+                            ))}
+
+                            {visSets.map(s => {
+                                const sCards = cards.filter(c=>c.setId===s.id);
+                                const due = sCards.filter(c=>c.nextReview<=Date.now()).length;
+                                return (
+                                    <div key={s.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition group flex flex-col min-h-[160px]">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 text-lg">{s.icon || '📄'}</div>
+                                                <h3 className="font-bold text-slate-800 line-clamp-2">{s.name}</h3>
+                                            </div>
+                                            <div className="relative group/menu">
+                                                <button className="text-slate-400 hover:text-slate-600 p-1"><i className="fa-solid fa-ellipsis-vertical"></i></button>
+                                                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-32 overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition z-10">
+                                                    <button onClick={()=>setBrowseSetId(s.id)} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"><i className="fa-solid fa-book-open w-4"></i> Browse</button>
+                                                    <button onClick={()=>deleteSet(s.id)} className="w-full text-left px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 border-t border-slate-100"><i className="fa-solid fa-trash w-4"></i> Delete</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <button onClick={()=>setNewCardSetId(s.id)} className="mb-4 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg w-max transition flex items-center gap-1"><i className="fa-solid fa-plus"></i> Add Card</button>
+
+                                        <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center">
+                                            <span className="text-xs font-bold text-slate-400">{sCards.length} Cards</span>
+                                            {due > 0 ? (
+                                                <button onClick={()=>setStudySetId(s.id)} className="bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm hover:bg-rose-600 hover:scale-105 transition flex items-center gap-1"><i className="fa-solid fa-fire"></i> {due} Due</button>
+                                            ) : (
+                                                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full"><i className="fa-solid fa-check"></i> Done</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </main>
+
+                    {newCardSetId && <CardEditorModal setId={newCardSetId} onClose={()=>setNewCardSetId(null)} userId={user.uid} db={db} />}
+                </div>
+            );
         };
 
-        const toggleCalendar = () => {
-            const cal = document.getElementById('calendar-sidebar');
-            cal.classList.toggle('hidden');
-            isCalendarOpen = !cal.classList.contains('hidden');
-            if(isCalendarOpen) renderCalendar();
-        };
-
-        const renderCalendar = () => {
-            const listEl = document.getElementById('calendar-list');
-            const now = new Date();
-            now.setHours(0,0,0,0);
-            
-            let schedule = {};
-            
-            deck.forEach(c => {
-                let due = new Date(c.nextReview);
-                due.setHours(0,0,0,0);
-                
-                let diffDays = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                
-                let label = "";
-                if (diffDays < 0) label = "Overdue";
-                else if (diffDays === 0) label = "Today";
-                else if (diffDays === 1) label = "Tomorrow";
-                else if (diffDays <= 7) label = due.toLocaleDateString('en-US', {weekday: 'long'});
-                else label = due.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-
-                let sortKey = diffDays < 0 ? -1 : diffDays;
-                
-                if (!schedule[sortKey]) schedule[sortKey] = { label, count: 0 };
-                schedule[sortKey].count++;
-            });
-
-            const sortedKeys = Object.keys(schedule).map(Number).sort((a, b) => a - b);
-            
-            if(sortedKeys.length === 0) {
-                listEl.innerHTML = '<div class="text-center text-slate-400 text-sm mt-10"><i class="fa-solid fa-mug-hot text-2xl mb-2 text-slate-300"></i><br>No upcoming reviews scheduled!</div>';
-                return;
-            }
-
-            listEl.innerHTML = sortedKeys.map(k => {
-                let item = schedule[k];
-                let colorClass = k <= 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
-                let icon = k <= 0 ? '<i class="fa-solid fa-triangle-exclamation"></i>' : '<i class="fa-regular fa-calendar"></i>';
-                return `
-                <div class="flex justify-between items-center p-3 rounded-xl border ${colorClass} shadow-sm">
-                    <div class="font-bold text-sm flex items-center gap-2">${icon} ${item.label}</div>
-                    <div class="font-bold text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-200/50 shadow-sm">${item.count} Cards</div>
-                </div>`;
-            }).join('');
-        };
-
-        Object.assign(window, {
-            switchTab, openNewFolderModal, openNewSetModal, startStudySession, openCustomStudyModal,
-            openFolder, navigateUp, openEditItemModal, softDeleteSet, openCardEditor, openDiagramMode,
-            goBackFromStudy, flipCard, readCardAloud, rateCard, importDeck, exportDeck, emptyRecycleBin,
-            restoreItem, hardDeleteItem, executeMoveSet, handleImageUpload, clearUploadedImage, formatText,
-            openDrawing, setBrush, clearCanvas, saveDrawing, handleDiagramUpload, startMaskDraw, drawMask,
-            endMaskDraw, clearDiagramMasks, undoLastMask, generateDiagramCards, closeModal, createFolder,
-            createSet, selectThemeColor, saveEditedItem, openSetDetail, softDeleteCard, openEditCard, saveCard,
-            openMoveModal, startCustomStudy, drawInsertImage, setDrawTool, navigateBrowse, startBrowseSession,
-            editCurrentSet, deleteCurrentSet, selectIcon, toggleCalendar
-        });
-
-        // Fire it up
-        initCloud();
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
