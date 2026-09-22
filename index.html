@@ -71,6 +71,11 @@
         .card-content :last-child { margin-bottom: 0; }
         /* Tool Active State */
         .tool-active { background-color: #e0e7ff !important; color: #4f46e5 !important; border-color: #c7d2fe !important; }
+
+        /* Avoid expensive modal backdrop blur and limit transitions to properties that change. */
+        #modal-container > div { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+        #folders-grid > div { transition-property: box-shadow, background-color, border-color; transition-duration: 150ms; }
+        #detail-cards-list > div { transition-property: background-color, border-color; transition-duration: 150ms; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col overflow-hidden bg-slate-50">
@@ -294,7 +299,7 @@
 
                         <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 space-y-4">
                             <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-emerald-500"></i> Export Backup</h2>
-                            <p class="text-sm text-slate-500 leading-relaxed">Download a full backup of your cards, hierarchy, study progress and recycle bin before making changes.</p>
+                            <p class="text-sm text-slate-500 leading-relaxed">Download a full backup of your cards, hierarchy, study progress and recycle bin whenever you want an extra recovery copy. Routine editing does not require a new download.</p>
                             <button onclick="exportDeck()" class="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow transition-all w-full md:w-auto flex items-center justify-center gap-2"><i class="fa-solid fa-copy"></i> Download complete JSON backup</button>
                         </div>
                     </section>
@@ -649,7 +654,6 @@
         const loaded = () => metadataLoaded && cardsLoaded && trashLoaded;
         const requireBackup = () => {
             if (!loaded()) { showAlert('Wait until all three cloud collections have loaded successfully.'); return false; }
-            if (!backupReady) { showAlert('Download a full backup from Import / Export before moving, renaming or deleting items.'); return false; }
             return true;
         };
         const clone = obj => structuredClone(obj);
@@ -901,7 +905,7 @@
             bcContainer.innerHTML = crumbHTML;
 
             const grid = document.getElementById('folders-grid');
-            grid.innerHTML = '';
+            const tileMarkup = [];
             const children = getDirectChildren(currentPath);
             const now = Date.now();
 
@@ -912,7 +916,7 @@
                 let color = (folderMeta[fPath] && folderMeta[fPath].color) ? folderMeta[fPath].color : 'slate';
                 let icon = (folderMeta[fPath] && folderMeta[fPath].icon) ? folderMeta[fPath].icon : 'fa-folder';
                 
-                grid.innerHTML += `
+                tileMarkup.push(`
                     <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openFolder('${esc(fPath)}')">
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-start gap-3 w-full pr-2">
@@ -928,7 +932,7 @@
                             <span class="text-[var(--theme-text)] opacity-70">${folderCards.length} Cards</span>
                             ${dueCount > 0 ? `<span class="bg-white text-[var(--theme-text)] px-2 py-0.5 rounded-md shadow-sm">${dueCount} Due</span>` : `<span class="text-[var(--theme-text)] opacity-50"><i class="fa-solid fa-check"></i> Done</span>`}
                         </div>
-                    </div>`;
+                    </div>`);
             });
 
             children.sets.sort().forEach(setName => {
@@ -938,7 +942,7 @@
                 let color = (setMeta[fullSetName] && setMeta[fullSetName].color) ? setMeta[fullSetName].color : 'slate';
                 let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
 
-                grid.innerHTML += `
+                tileMarkup.push(`
                     <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openSetDetail('${esc(setName)}')">
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-start gap-3 w-full pr-2">
@@ -954,8 +958,10 @@
                             <span class="text-[var(--theme-text)] opacity-70">${setCards.length} Cards</span>
                             ${dueCount > 0 ? `<span class="bg-white text-[var(--theme-text)] px-2 py-0.5 rounded-md shadow-sm">${dueCount} Due</span>` : `<span class="text-[var(--theme-text)] opacity-50"><i class="fa-solid fa-check"></i> Done</span>`}
                         </div>
-                    </div>`;
+                    </div>`);
             });
+
+            grid.innerHTML = tileMarkup.join('');
 
             if (children.folders.length === 0 && children.sets.length === 0) {
                 grid.innerHTML = `
