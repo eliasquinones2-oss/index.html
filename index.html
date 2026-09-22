@@ -11,14 +11,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
-    <style>
-        .card-content b, .card-content strong { font-weight: bold; margin: 0; }
-        .card-content i, .card-content em { font-style: italic; margin: 0; }
-        .card-content u { text-decoration: underline; margin: 0; }
-        .card-scroll-fix { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100%; overflow-y: auto; text-align: center; }
-    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 antialiased">
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect } = React;
@@ -39,31 +33,23 @@
             const [loading, setLoading] = useState(true);
             const [folders, setFolders] = useState([]);
             const [sets, setSets] = useState([]);
-            const [cards, setCards] = useState([]);
-            const [currentView, setCurrentView] = useState('home');
-            const [activeSet, setActiveSet] = useState(null);
             const [showImportModal, setShowImportModal] = useState(false);
-            const [showCalendarModal, setShowCalendarModal] = useState(false);
             const [importText, setImportText] = useState("");
 
             useEffect(() => {
                 return auth.onAuthStateChanged(u => {
                     setUser(u);
                     setLoading(false);
-                    if (u) loadAllData(u.uid);
+                    if (u) loadData(u.uid);
                 });
             }, []);
 
-            const loadAllData = async (uid) => {
+            const loadData = async (uid) => {
                 const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(uid);
-                const [fSnap, sSnap, cSnap] = await Promise.all([
-                    userRef.collection('folders').get(),
-                    userRef.collection('sets').get(),
-                    userRef.collection('cards').get()
-                ]);
+                const fSnap = await userRef.collection('folders').get();
                 setFolders(fSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+                const sSnap = await userRef.collection('sets').get();
                 setSets(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-                setCards(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
             };
 
             const handleImport = async () => {
@@ -71,47 +57,36 @@
                     const data = JSON.parse(importText);
                     const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
                     
-                    // Handle array or object structures safely
-                    const foldersList = Array.isArray(data.folders) ? data.folders : Object.entries(data.folders || {}).map(([k, v]) => ({ id: k, name: k, ...v }));
-                    const setsList = Array.isArray(data.sets) ? data.sets : Object.entries(data.sets || {}).map(([k, v]) => ({ id: k, name: k, ...v }));
-                    const cardsList = Array.isArray(data.cards) ? data.cards : Object.entries(data.cards || {}).map(([k, v]) => ({ id: k, ...v }));
+                    let importedCount = 0;
+                    // If the JSON is a dictionary of "Folder/Set Name": { color, icon }
+                    for (const [key, val] of Object.entries(data)) {
+                        const parts = key.split('/');
+                        const folderName = parts.length > 1 ? parts[0] : "General";
+                        const setName = parts.length > 1 ? parts[1] : key;
 
-                    for (const f of foldersList) {
-                        await userRef.collection('folders').doc(f.id || Date.now().toString()).set(f, { merge: true });
-                    }
-                    for (const s of setsList) {
-                        await userRef.collection('sets').doc(s.id || Date.now().toString()).set(s, { merge: true });
-                    }
-                    for (const c of cardsList) {
-                        await userRef.collection('cards').doc(c.id || Date.now().toString()).set(c, { merge: true });
+                        await userRef.collection('sets').doc(key.replace(/[/]/g, '_')).set({
+                            name: setName,
+                            folderName: folderName,
+                            ...val,
+                            updatedAt: Date.now()
+                        }, { merge: true });
+                        importedCount++;
                     }
 
-                    alert("Import successful!");
+                    alert(`Successfully imported ${importedCount} sets/folders!`);
                     setShowImportModal(false);
-                    loadAllData(user.uid);
+                    loadData(user.uid);
                 } catch (e) {
                     alert("Import Error: " + e.message);
                 }
             };
 
-            const deleteFolder = async (folderId) => {
-                if (!confirm("Delete folder and all its sets?")) return;
-                const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
-                await userRef.collection('folders').doc(folderId).delete();
-                const childSets = sets.filter(s => s.folderId === folderId);
-                for (const s of childSets) {
-                    await userRef.collection('sets').doc(s.id).delete();
-                }
-                loadAllData(user.uid);
-            };
-
-            if (loading) return <div className="p-10 text-center font-bold">Loading Lumina Flash...</div>;
+            if (loading) return <div className="p-10 text-center font-bold">Loading...</div>;
 
             if (!user) return (
                 <div className="p-10 text-center max-w-md mx-auto mt-20 bg-white rounded-2xl shadow-xl border">
                     <h1 className="text-2xl font-black mb-2 text-blue-600">Lumina Flash</h1>
-                    <p className="text-sm text-slate-500 mb-6">Sign in to access your cloud study decks.</p>
-                    <button onClick={() => auth.signInAnonymously()} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 mb-3">Sign In Anonymously</button>
+                    <button onClick={() => auth.signInAnonymously()} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold mb-3">Sign In Anonymously</button>
                     <button onClick={() => {
                         const email = prompt("Email:");
                         const pass = prompt("Password:");
@@ -123,114 +98,36 @@
             return (
                 <div className="min-h-screen bg-slate-50">
                     <header className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-40">
-                        <h1 className="text-xl font-extrabold text-slate-800 cursor-pointer" onClick={() => setCurrentView('home')}>Lumina Flash</h1>
+                        <h1 className="text-xl font-extrabold text-slate-800">Lumina Flash</h1>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setShowCalendarModal(true)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-slate-200">📅 Calendar</button>
-                            <button onClick={() => setShowImportModal(true)} className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-emerald-200 hover:bg-emerald-100">📥 Import</button>
-                            <button onClick={() => auth.signOut()} className="text-sm text-red-500 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50">Sign Out</button>
+                            <button onClick={() => setShowImportModal(true)} className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-emerald-200 hover:bg-emerald-100">📥 Import Your Backup</button>
+                            <button onClick={() => auth.signOut()} className="text-sm text-red-500 font-semibold px-3 py-1.5 rounded-lg">Sign Out</button>
                         </div>
                     </header>
 
                     <main className="max-w-5xl mx-auto p-6">
-                        {currentView === 'home' && (
-                            <div>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-lg font-bold text-slate-700">Your Folders</h2>
-                                    <button onClick={async () => {
-                                        const name = prompt("Folder Name:");
-                                        if (name) {
-                                            const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
-                                            await userRef.collection('folders').add({ name, icon: "📁", createdAt: Date.now() });
-                                            loadAllData(user.uid);
-                                        }
-                                    }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">+ New Folder</button>
+                        <h2 className="text-lg font-bold text-slate-700 mb-4">Your Study Sets</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {sets.map(s => (
+                                <div key={s.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                    <h3 className="font-bold text-base mb-1">{s.name}</h3>
+                                    <p className="text-xs text-slate-400">Folder: {s.folderName || "General"}</p>
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                    {folders.map(f => (
-                                        <div key={f.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
-                                            <div>
-                                                <h3 className="font-bold text-lg">{f.icon || "📁"} {f.name}</h3>
-                                                <p className="text-xs text-slate-400">{sets.filter(s => s.folderId === f.id).length} study sets</p>
-                                            </div>
-                                            <button onClick={() => deleteFolder(f.id)} className="text-red-400 hover:text-red-600 p-1 font-bold">🗑️</button>
-                                        </div>
-                                    ))}
-                                    {folders.length === 0 && <p className="text-slate-400 text-sm">No folders yet. Click "Import" above to load your JSON backup!</p>}
-                                </div>
-
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-lg font-bold text-slate-700">Study Sets</h2>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {sets.map(s => (
-                                        <div key={s.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
-                                            <div>
-                                                <h3 className="font-bold text-base mb-1">{s.name}</h3>
-                                                <p className="text-xs text-slate-400 mb-4">{cards.filter(c => c.setId === s.id).length} cards</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => { setActiveSet(s); setCurrentView('study'); }} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-xs font-bold">Study</button>
-                                                <button onClick={() => { setActiveSet(s); setCurrentView('browse'); }} className="bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold">Browse</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {currentView === 'study' && activeSet && (
-                            <div>
-                                <button onClick={() => setCurrentView('home')} className="mb-4 text-sm font-bold text-blue-600">← Back to Home</button>
-                                <div className="bg-white p-8 rounded-2xl shadow border text-center">
-                                    <h2 className="text-xl font-bold mb-4">Studying: {activeSet.name}</h2>
-                                    <p className="text-slate-500">Cards in set: {cards.filter(c => c.setId === activeSet.id).length}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {currentView === 'browse' && activeSet && (
-                            <div>
-                                <button onClick={() => setCurrentView('home')} className="mb-4 text-sm font-bold text-blue-600">← Back to Home</button>
-                                <div className="bg-white p-8 rounded-2xl shadow border">
-                                    <h2 className="text-xl font-bold mb-4">Browsing: {activeSet.name}</h2>
-                                    <div className="space-y-3">
-                                        {cards.filter(c => c.setId === activeSet.id).map((c) => (
-                                            <div key={c.id} className="p-4 border rounded-xl flex justify-between items-center">
-                                                <div>
-                                                    <p className="font-bold text-sm">Front: {c.front || c.question || JSON.stringify(c)}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                            ))}
+                            {sets.length === 0 && <p className="text-slate-400 text-sm">No sets found yet. Click "Import Your Backup" above and paste your exported JSON!</p>}
+                        </div>
                     </main>
 
                     {showImportModal && (
                         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                             <div className="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl">
-                                <h3 className="text-lg font-bold mb-2">Import Flashcard Data</h3>
-                                <p className="text-xs text-slate-500 mb-4">Paste your exported JSON structure below.</p>
+                                <h3 className="text-lg font-bold mb-2">Import Your Flashcard JSON</h3>
+                                <p className="text-xs text-slate-500 mb-4">Paste the exact JSON text you exported from your previous version.</p>
                                 <textarea value={importText} onChange={e => setImportText(e.target.value)} placeholder='Paste JSON here...' className="w-full h-48 p-3 border rounded-xl text-xs font-mono mb-4 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                                 <div className="flex justify-end gap-2">
-                                    <button onClick={() => setShowImportModal(false)} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100">Cancel</button>
-                                    <button onClick={handleImport} className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-md">Import Now</button>
+                                    <button onClick={() => setShowImportModal(false)} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-500">Cancel</button>
+                                    <button onClick={handleImport} className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white">Import Now</button>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showCalendarModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl">
-                                <h3 className="text-lg font-bold mb-2">Study Calendar</h3>
-                                <div className="space-y-2 mb-6">
-                                    <div className="p-3 bg-blue-50 text-blue-800 rounded-xl font-bold text-sm flex justify-between"><span>Due Today</span><span>0 cards</span></div>
-                                </div>
-                                <button onClick={() => setShowCalendarModal(false)} className="w-full bg-slate-900 text-white py-2 rounded-xl text-sm font-bold">Close</button>
                             </div>
                         </div>
                     )}
