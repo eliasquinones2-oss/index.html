@@ -55,6 +55,19 @@
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
+        /* Keep the ENTIRE diagram visible while keeping masks aligned to the image. */
+        #diagram-workspace { display: block !important; overflow: auto; min-height: 0; }
+        #diagram-empty-state { margin: 0 auto; }
+        #diagram-container { width: fit-content; max-width: 100%; margin: 0 auto; }
+        #diagram-image { display: block; width: auto; height: auto; max-width: 100%; }
+        .occlusion-card-content { display: flex; flex-direction: column; align-items: center; gap: .55rem; }
+        .occlusion-image-wrap { position: relative; display: block; width: fit-content; max-width: 100%; margin: 0 auto; line-height: 0; flex: none; }
+        .occlusion-image-wrap img { display: block; max-width: 100%; object-fit: contain; border-radius: .75rem; }
+        #flashcard-front:has(.occlusion-card-content), #flashcard-back:has(.occlusion-card-content) {
+            overflow: auto !important;
+            overscroll-behavior: contain;
+        }
+
         /* Color Theme Classes */
         .theme-slate { --theme-bg: #f8fafc; --theme-text: #64748b; --theme-border: #e2e8f0; --theme-hover: #f1f5f9; --theme-accent: #334155; }
         .theme-indigo { --theme-bg: #e0e7ff; --theme-text: #4f46e5; --theme-border: #c7d2fe; --theme-hover: #e0e7ff; --theme-accent: #4338ca; }
@@ -1482,6 +1495,28 @@
             renderStudyCard(currentCard);
         };
 
+        const fitOcclusionImage = (img) => {
+            if (!img || !img.isConnected || !img.naturalWidth || !img.naturalHeight) return;
+            const wrapper = img.closest('.occlusion-image-wrap');
+            const panel = img.closest('#flashcard-front, #flashcard-back');
+            if (!wrapper || !panel || !panel.clientWidth || !panel.clientHeight) return;
+            const hasHeading = panel.id === 'flashcard-front';
+            const availableWidth = Math.max(1, panel.clientWidth - 2);
+            const availableHeight = Math.max(1, panel.clientHeight - (hasHeading ? 42 : 8));
+            const scale = Math.min(1, availableWidth / img.naturalWidth, availableHeight / img.naturalHeight);
+            const w = Math.max(1, img.naturalWidth * scale);
+            const h = Math.max(1, img.naturalHeight * scale);
+            // Explicitly size BOTH image and wrapper; masks stay correctly positioned.
+            wrapper.style.width = `${w}px`;
+            wrapper.style.height = `${h}px`;
+            img.style.width = `${w}px`;
+            img.style.height = `${h}px`;
+        };
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.occlusion-image-wrap img').forEach(fitOcclusionImage);
+        });
+        window.fitOcclusionImage = fitOcclusionImage;
+
         const renderStudyCard = (card) => {
             document.getElementById('flashcard-inner').classList.remove('flipped');
             if(sessionMode === 'study') document.getElementById('grading-buttons').classList.add('hidden');
@@ -1499,17 +1534,26 @@
             footBackEl.classList.add('hidden');
 
             if (card.type === 'occlusion') {
-                let imgHtml = `<div class="relative inline-block max-w-full"><img src="${card.imageFront}" class="max-h-[440px] max-w-full object-contain rounded-lg">`;
-                let frontMasks = card.masks.map((m, i) => {
-                    let isTarget = (i === card.targetIndex);
-                    return `<div class="occlusion-mask ${isTarget ? 'target-mask' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;">
-                                ${isTarget ? '<div class="absolute inset-0 flex items-center justify-center text-white/90 font-bold">?</div>' : ''}
-                            </div>`;
-                }).join('');
-                frontEl.innerHTML = `<div class="card-content"><div class="text-sm font-bold text-amber-500 mb-2 uppercase tracking-wide">Identify the highlighted area</div>` + imgHtml + frontMasks + `</div></div>`;
-
-                let backMasks = card.masks.map((m, i) => `<div class="occlusion-mask ${i === card.targetIndex ? 'revealed' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;"></div>`).join('');
-                backEl.innerHTML = `<div class="card-content">` + imgHtml + backMasks + `</div></div>`;
+                // Percentage masks must use the ACTUAL image box, not a larger container.
+                // Each side gets its own image so both can be measured independently.
+                const masks = Array.isArray(card.masks) ? card.masks : [];
+                const renderOcclusionSide = (reveal = false) => {
+                    const img = `<img src="${card.imageFront}" alt="Full image occlusion diagram" draggable="false" onload="fitOcclusionImage(this)">`;
+                    const overlays = masks.map((m, i) => {
+                        const target = i === card.targetIndex;
+                        const state = reveal ? (target ? 'revealed' : '') : (target ? 'target-mask' : '');
+                        const question = !reveal && target ? '<span class="absolute inset-0 flex items-center justify-center text-white font-bold">?</span>' : '';
+                        return `<div class="occlusion-mask ${state}" style="left:${m.left}%;top:${m.top}%;width:${m.width}%;height:${m.height}%;">${question}</div>`;
+                    }).join('');
+                    return `<div class="card-content occlusion-card-content">
+                        ${reveal ? '' : '<div class="text-sm font-bold text-amber-500 uppercase tracking-wide">Identify the highlighted area</div>'}
+                        <div class="occlusion-image-wrap">${img}${overlays}</div>
+                    </div>`;
+                };
+                frontEl.innerHTML = renderOcclusionSide(false);
+                backEl.innerHTML = renderOcclusionSide(true);
+                // Also handles cached images whose load event may have fired already.
+                requestAnimationFrame(() => document.querySelectorAll('.occlusion-image-wrap img').forEach(fitOcclusionImage));
 
             } else {
                 const renderSide = (text, image, drawing) => {
