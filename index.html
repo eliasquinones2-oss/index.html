@@ -68,9 +68,8 @@
 
                     for (const doc of userDocs.docs) {
                         const oldUserId = doc.id;
-                        if (oldUserId === user.uid) continue; // Skip current active user
+                        if (oldUserId === user.uid) continue;
 
-                        // Fetch old folders, sets, cards
                         const [fSnap, sSnap, cSnap] = await Promise.all([
                             usersRef.doc(oldUserId).collection('folders').get(),
                             usersRef.doc(oldUserId).collection('sets').get(),
