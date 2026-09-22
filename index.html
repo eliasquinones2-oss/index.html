@@ -76,6 +76,28 @@
         #modal-container > div { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
         #folders-grid > div { transition-property: box-shadow, background-color, border-color; transition-duration: 150ms; }
         #detail-cards-list > div { transition-property: background-color, border-color; transition-duration: 150ms; }
+        /* Render long card lists in small batches and avoid offscreen layout work. */
+        .flashcard-list-row { content-visibility: auto; contain-intrinsic-size: auto 78px; }
+        .library-tile { transition: box-shadow .15s ease, border-color .15s ease !important; }
+        .library-tile:hover { box-shadow: 0 4px 12px rgba(15, 23, 42, .09); }
+        .library-cover { width: 100%; height: 108px; object-fit: cover; display: block; border-radius: 12px; margin: 0 0 14px; background: #e2e8f0; }
+        .library-tile img { content-visibility: auto; }
+        #detail-set-cover { height: 148px; width: 100%; object-fit: cover; border-radius: 12px; margin-bottom: 14px; }
+        .card-content.card-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 1.15rem; align-items: center; text-align: left; }
+        .card-content .card-text { min-width: 0; overflow-wrap: anywhere; }
+        .card-content .card-image-stack { display: flex; flex-direction: column; gap: .6rem; align-items: center; min-width: 0; }
+        .card-content .card-image-stack img { width: 100%; max-width: 100%; max-height: min(47vh, 360px); margin: 0; border-radius: 12px; object-fit: contain; }
+        .card-content.image-only .card-image-stack img { max-height: min(58vh, 430px); }
+        .card-content .card-text:empty { display: none; }
+        #flashcard-front > .card-content.card-split, #flashcard-back > .card-content.card-split { margin: auto; }
+        @media (max-width: 580px) {
+            .card-content.card-split { grid-template-columns: minmax(0, 1fr); text-align: center; }
+            .card-content .card-image-stack img { max-height: min(32vh, 260px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .card-flip-inner { transition: none; }
+            .library-tile { transition: none !important; }
+        }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex flex-col overflow-hidden bg-slate-50">
@@ -169,6 +191,7 @@
                     <section id="view-set-detail" class="hidden space-y-6 animate-in slide-in-from-right-4 duration-300">
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4 relative overflow-hidden">
                             <div id="set-detail-header-bg" class="absolute inset-0 opacity-10 pointer-events-none transition-colors duration-300"></div>
+                            <img id="detail-set-cover" class="hidden relative z-10" alt="Study set cover">
                             <div class="flex justify-between items-start relative z-10">
                                 <div class="flex-1 min-w-0 pr-4">
                                 <button onclick="navigateUp()" class="text-slate-400 hover:text-indigo-600 text-sm font-bold flex items-center gap-1 mb-2 transition-colors">
@@ -358,7 +381,7 @@
 
         <!-- Edit/Rename Modal (Color, Icon, & Name) -->
         <div id="edit-item-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5">
+            <div class="bg-white rounded-3xl p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl space-y-5">
                 <h3 id="edit-item-title" class="font-bold text-lg text-slate-800">Edit Item</h3>
                 <div class="space-y-1">
                     <label class="text-xs font-bold text-slate-500 uppercase">Name</label>
@@ -373,8 +396,28 @@
                         <button onclick="selectThemeColor('emerald')" id="theme-btn-emerald" class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
                         <button onclick="selectThemeColor('amber')" id="theme-btn-amber" class="w-8 h-8 rounded-full bg-amber-500 border-2 border-transparent hover:scale-110 transition-transform theme-selector"></button>
                     </div>
+                    <div class="flex items-center gap-3 pt-2">
+                        <label for="theme-custom-color" class="text-xs font-bold text-slate-500">Any color</label>
+                        <input type="color" id="theme-custom-color" value="#6366f1" aria-label="Choose a custom folder or set color" class="h-10 w-16 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" oninput="selectThemeColor(this.value)">
+                        <span id="theme-color-value" class="text-xs font-mono text-slate-500">#6366f1</span>
+                    </div>
+                    <div id="extra-theme-colors" class="flex flex-wrap gap-2" aria-label="More theme colors"></div>
                 </div>
-                
+
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <label class="text-xs font-bold text-slate-500 uppercase">Cover image (optional)</label>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="cursor-pointer rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100">
+                            <i class="fa-solid fa-image mr-1"></i> Choose picture
+                            <input id="item-cover-file" type="file" accept="image/*" class="hidden" onchange="handleItemCoverUpload(this)">
+                        </label>
+                        <button type="button" onclick="removeItemCover()" class="rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">Remove picture</button>
+                        <span id="item-cover-status" class="text-xs text-slate-500" aria-live="polite"></span>
+                    </div>
+                    <img id="item-cover-preview" alt="Folder or set cover preview" class="hidden h-28 w-full rounded-xl border border-slate-200 object-cover">
+                    <p class="text-xs text-slate-400">Pictures are compressed to keep them in your existing Firebase library. Large libraries may reach the image storage limit.</p>
+                </div>
+
                 <div class="space-y-2 pt-2 border-t border-slate-100">
                     <label class="text-xs font-bold text-slate-500 uppercase">Custom emoji or short icon label</label>
                     <input id="custom-icon" type="text" maxlength="12" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-sm" placeholder="e.g. 🧬 or BIO">
@@ -448,9 +491,13 @@
                         <div class="w-px h-6 bg-slate-300 mx-1 mt-1"></div>
                         <input type="color" id="editor-color-picker" class="w-8 h-8 rounded cursor-pointer border-0 p-0" onchange="formatText('foreColor', this.value)" title="Text Color">
                     </div>
-                    <div class="flex flex-wrap items-center gap-1.5 bg-slate-50 px-2 py-2 rounded-xl border border-slate-200" aria-label="Greek letters">
-                        <span class="text-xs font-semibold text-slate-500 mr-1">Greek:</span>
-                        <div id="greek-character-buttons" class="flex flex-wrap gap-1"></div>
+                    <div>
+                        <button type="button" id="greek-picker-toggle" onclick="toggleGreekPicker()" aria-controls="greek-picker" aria-expanded="false" class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700">
+                            <span>α Ω</span> Greek characters <i id="greek-toggle-chevron" class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </button>
+                        <div id="greek-picker" class="hidden mt-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2" aria-label="Greek letters">
+                            <div id="greek-character-buttons" class="flex flex-wrap gap-1"></div>
+                        </div>
                     </div>
 
                     <div class="space-y-1">
@@ -648,6 +695,12 @@
         let syncTimeout;
         let metadataLoaded = false, cardsLoaded = false, trashLoaded = false, backupReady = false;
         let movingItem = null;
+        let editingCoverImage = '';
+        let editingCoverProcessing = false;
+        let detailCardList = [];
+        let detailCardsRendered = 0;
+        let detailCardsObserver = null;
+        const DETAIL_BATCH_SIZE = 50;
         const metaRef = () => doc(db, 'artifacts', appId, 'users', userId, 'metadata', 'core');
         const cardRef = id => doc(db, 'artifacts', appId, 'users', userId, 'cards', id);
         const trashRef = id => doc(db, 'artifacts', appId, 'users', userId, 'trash', id);
@@ -661,6 +714,10 @@
             if (!requireBackup()) return false;
             if (updatedCards.length + removedCards.length + 1 + (newTrash ? 1 : 0) > 450) {
                 showAlert('Too many cards for one safe transaction (limit 448). Export your backup and split this operation into smaller folders.'); return false;
+            }
+            const metadataBytes = new TextEncoder().encode(JSON.stringify({folders: nextFolders, folderMeta: nextFolderMeta, setMeta: nextSetMeta})).length;
+            if (metadataBytes > 850000) {
+                showAlert('Your folder/set pictures exceed the safe Firestore metadata limit. Remove some cover images or use smaller pictures. Nothing was changed.'); return false;
             }
             const batch = writeBatch(db);
             batch.set(metaRef(), {folders: nextFolders, folderMeta: nextFolderMeta, setMeta: nextSetMeta});
@@ -769,7 +826,7 @@
                     folderMeta = data.folderMeta || {};
                     setMeta = data.setMeta || {};
                     metadataLoaded = true;
-                    renderFoldersView();
+                    if (!document.getElementById('view-folders').classList.contains('hidden')) renderFoldersView();
                 } else {
                     metadataLoaded = false;
                     showAlert('Metadata was not found for this account. No new metadata has been written. Check that you signed into your original account.'); 
@@ -882,10 +939,24 @@
 
         const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[ch]));
         const iconMarkup = icon => icon && icon.startsWith('fa-') && /^[a-z-]+$/.test(icon) ? `<i class="fa-solid ${icon}"></i>` : `<span class="text-sm font-bold">${escapeHtml(icon || '📁')}</span>`;
-        const getColorThemeClass = (colorName) => {
-            const map = { 'slate': 'theme-slate', 'indigo': 'theme-indigo', 'rose': 'theme-rose', 'emerald': 'theme-emerald', 'amber': 'theme-amber' };
+        const getColorThemeClass = colorName => {
+            const map = { slate: 'theme-slate', indigo: 'theme-indigo', rose: 'theme-rose', emerald: 'theme-emerald', amber: 'theme-amber' };
             return map[colorName] || 'theme-slate';
         };
+        const legacyColors = { slate: '#64748b', indigo: '#6366f1', rose: '#e11d48', emerald: '#059669', amber: '#d97706' };
+        const cleanColor = color => /^#[0-9a-f]{6}$/i.test(color || '') ? color.toLowerCase() : (legacyColors[color] || '#64748b');
+        const mixColor = (hex, other, amount) => {
+            const rgb = value => [1, 3, 5].map(i => parseInt(value.slice(i, i + 2), 16));
+            const a = rgb(hex), b = rgb(other);
+            return '#' + a.map((channel, i) => Math.round(channel * (1 - amount) + b[i] * amount).toString(16).padStart(2, '0')).join('');
+        };
+        const themeStyle = color => {
+            if (!/^#[0-9a-f]{6}$/i.test(color || '')) return '';
+            const hex = cleanColor(color);
+            return `style="--theme-bg:${mixColor(hex, '#ffffff', .89)};--theme-text:${mixColor(hex, '#000000', .28)};--theme-border:${mixColor(hex, '#ffffff', .67)};--theme-hover:${mixColor(hex, '#ffffff', .78)};--theme-accent:${mixColor(hex, '#000000', .48)}"`;
+        };
+        const safeCoverImage = image => typeof image === 'string' && /^data:image\/jpeg;base64,[a-z0-9+/=]+$/i.test(image) && image.length <= 60000 ? image : '';
+        const coverMarkup = image => safeCoverImage(image) ? `<img class="library-cover" src="${image}" loading="lazy" decoding="async" alt="">` : '';
 
         const renderFoldersView = () => {
             const bcContainer = document.getElementById('breadcrumb-container');
@@ -908,20 +979,43 @@
             const tileMarkup = [];
             const children = getDirectChildren(currentPath);
             const now = Date.now();
+            // One pass over cards; the previous nested filter scanned the entire deck for every folder/set.
+            const knownSets = new Set(Object.entries(folders).flatMap(([parent, names]) =>
+                (names || []).map(name => parent === '_root' ? name : parent + '/' + name)));
+            const setCounts = new Map(), folderCounts = new Map();
+            const increment = (map, key, due) => {
+                const stats = map.get(key) || {total: 0, due: 0};
+                stats.total++;
+                if (due) stats.due++;
+                map.set(key, stats);
+            };
+            deck.forEach(card => {
+                if (!knownSets.has(card.category)) return;
+                const due = card.nextReview <= now;
+                increment(setCounts, card.category, due);
+                const parts = card.category.split('/');
+                parts.pop();
+                while (parts.length) {
+                    increment(folderCounts, parts.join('/'), due);
+                    parts.pop();
+                }
+            });
 
             children.folders.sort().forEach(fPath => {
                 const fName = fPath.split('/').pop();
-                let folderCards = getCardsInFolderTree(fPath);
-                let dueCount = folderCards.filter(c => c.nextReview <= now).length;
+                const stats = folderCounts.get(fPath) || {total: 0, due: 0};
+                const dueCount = stats.due;
                 let color = (folderMeta[fPath] && folderMeta[fPath].color) ? folderMeta[fPath].color : 'slate';
                 let icon = (folderMeta[fPath] && folderMeta[fPath].icon) ? folderMeta[fPath].icon : 'fa-folder';
-                
+                const coverImage = folderMeta[fPath]?.coverImage || '';
+
                 tileMarkup.push(`
-                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openFolder('${esc(fPath)}')">
+                    <div class="library-tile bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm cursor-pointer group flex flex-col ${getColorThemeClass(color)}" ${themeStyle(color)} onclick="openFolder('${esc(fPath)}')">
+                        ${coverMarkup(coverImage)}
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-start gap-3 w-full pr-2">
                                 <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm">${iconMarkup(icon)}</div>
-                                <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${fName}</h3>
+                                <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${escapeHtml(fName)}</h3>
                             </div>
                             <div class="flex flex-col gap-1 items-end shrink-0">
                                 <button onclick="event.stopPropagation(); openEditItemModal('folder', '${esc(fName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
@@ -929,7 +1023,7 @@
                             </div>
                         </div>
                         <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
-                            <span class="text-[var(--theme-text)] opacity-70">${folderCards.length} Cards</span>
+                            <span class="text-[var(--theme-text)] opacity-70">${stats.total} Cards</span>
                             ${dueCount > 0 ? `<span class="bg-white text-[var(--theme-text)] px-2 py-0.5 rounded-md shadow-sm">${dueCount} Due</span>` : `<span class="text-[var(--theme-text)] opacity-50"><i class="fa-solid fa-check"></i> Done</span>`}
                         </div>
                     </div>`);
@@ -937,17 +1031,19 @@
 
             children.sets.sort().forEach(setName => {
                 let fullSetName = currentPath === '_root' ? setName : `${currentPath}/${setName}`;
-                let setCards = deck.filter(c => c.category === fullSetName);
-                let dueCount = setCards.filter(c => c.nextReview <= now).length;
+                const stats = setCounts.get(fullSetName) || {total: 0, due: 0};
+                const dueCount = stats.due;
                 let color = (setMeta[fullSetName] && setMeta[fullSetName].color) ? setMeta[fullSetName].color : 'slate';
                 let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
+                const coverImage = setMeta[fullSetName]?.coverImage || '';
 
                 tileMarkup.push(`
-                    <div class="bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col ${getColorThemeClass(color)}" onclick="openSetDetail('${esc(setName)}')">
+                    <div class="library-tile bg-[var(--theme-bg)] border border-[var(--theme-border)] p-5 rounded-2xl shadow-sm cursor-pointer group flex flex-col ${getColorThemeClass(color)}" ${themeStyle(color)} onclick="openSetDetail('${esc(setName)}')">
+                        ${coverMarkup(coverImage)}
                         <div class="flex items-start justify-between mb-2">
                             <div class="flex items-start gap-3 w-full pr-2">
-                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm"><i class="fa-solid ${icon}"></i></div>
-                                <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${setName}</h3>
+                                <div class="w-10 h-10 shrink-0 rounded-xl bg-white text-[var(--theme-text)] flex items-center justify-center mt-0.5 shadow-sm">${iconMarkup(icon)}</div>
+                                <h3 class="font-bold text-[var(--theme-accent)] break-words leading-tight text-lg">${escapeHtml(setName)}</h3>
                             </div>
                             <div class="flex flex-col gap-1 items-end shrink-0">
                                 <button onclick="event.stopPropagation(); openEditItemModal('set', '${esc(setName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
@@ -955,7 +1051,7 @@
                             </div>
                         </div>
                         <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
-                            <span class="text-[var(--theme-text)] opacity-70">${setCards.length} Cards</span>
+                            <span class="text-[var(--theme-text)] opacity-70">${stats.total} Cards</span>
                             ${dueCount > 0 ? `<span class="bg-white text-[var(--theme-text)] px-2 py-0.5 rounded-md shadow-sm">${dueCount} Due</span>` : `<span class="text-[var(--theme-text)] opacity-50"><i class="fa-solid fa-check"></i> Done</span>`}
                         </div>
                     </div>`);
@@ -1005,6 +1101,72 @@
             closeModal('input-modal'); openSetDetail(name);
         };
 
+        const setCoverPreview = image => {
+            const preview = document.getElementById('item-cover-preview');
+            const safeImage = safeCoverImage(image);
+            preview.classList.toggle('hidden', !safeImage);
+            if (safeImage) preview.src = safeImage;
+            else preview.removeAttribute('src');
+        };
+        const handleItemCoverUpload = async input => {
+            const file = input.files?.[0];
+            if (!file) return;
+            input.value = '';
+            if (!file.type.startsWith('image/') || file.size > 12000000) return showAlert('Choose an image under 12 MB.');
+            editingCoverProcessing = true;
+            document.getElementById('edit-item-submit').disabled = true;
+            document.getElementById('item-cover-status').textContent = 'Preparing picture…';
+            const url = URL.createObjectURL(file);
+            try {
+                const image = new Image();
+                await new Promise((resolve, reject) => {
+                    image.onload = resolve;
+                    image.onerror = () => reject(new Error('Could not read that picture.'));
+                    image.src = url;
+                });
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                let scale = Math.min(1, 640 / image.naturalWidth, 400 / image.naturalHeight);
+                let result = '';
+                for (let attempt = 0; attempt < 7; attempt++) {
+                    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    result = canvas.toDataURL('image/jpeg', Math.max(.36, .7 - attempt * .07));
+                    if (result.length <= 55000) break;
+                    scale *= .76;
+                }
+                if (!safeCoverImage(result) || result.length > 55000) throw new Error('Picture is too complex to store safely. Choose a simpler or smaller one.');
+                editingCoverImage = result;
+                setCoverPreview(result);
+                document.getElementById('item-cover-status').textContent = 'Picture ready';
+            } catch (error) {
+                document.getElementById('item-cover-status').textContent = 'Upload failed';
+                showAlert(error.message);
+            } finally {
+                URL.revokeObjectURL(url);
+                editingCoverProcessing = false;
+                document.getElementById('edit-item-submit').disabled = false;
+            }
+        };
+        const removeItemCover = () => {
+            editingCoverImage = '';
+            setCoverPreview('');
+            document.getElementById('item-cover-status').textContent = 'Picture removed (save to apply)';
+        };
+        const extraThemeColors = ['#0ea5e9', '#06b6d4', '#14b8a6', '#84cc16', '#f97316', '#ef4444', '#a855f7', '#d946ef', '#ec4899', '#64748b'];
+        document.getElementById('extra-theme-colors').replaceChildren(...extraThemeColors.map(hex => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.title = `Use ${hex}`;
+            button.setAttribute('aria-label', `Use color ${hex}`);
+            button.className = 'h-8 w-8 rounded-full border-2 border-white shadow-sm theme-extra-selector';
+            button.style.backgroundColor = hex;
+            button.dataset.color = hex;
+            button.addEventListener('click', () => selectThemeColor(hex));
+            return button;
+        }));
+
         const openEditItemModal = (type, oldName, parentPath) => {
             editingItemType = type; editingItemOldName = oldName; editingItemParentPath = parentPath;
             let fullPath = type === 'folder' ? (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`) : (parentPath === '_root' ? oldName : `${parentPath}/${oldName}`);
@@ -1026,15 +1188,26 @@
             selectThemeColor(currentColor);
             selectIcon(currentIcon);
             document.getElementById('custom-icon').value = currentIcon.startsWith('fa-') ? '' : currentIcon;
+            editingCoverProcessing = false;
+            editingCoverImage = (type === 'folder' ? folderMeta[fullPath] : setMeta[fullPath])?.coverImage || '';
+            setCoverPreview(editingCoverImage);
+            document.getElementById('item-cover-status').textContent = '';
+            document.getElementById('edit-item-submit').disabled = false;
 
             document.getElementById('edit-item-submit').onclick = saveEditedItem;
             document.getElementById('edit-item-modal').classList.remove('hidden');
         };
 
-        const selectThemeColor = (color) => {
-            selectedThemeColor = color;
-            document.querySelectorAll('.theme-selector').forEach(btn => btn.classList.remove('ring-4', 'ring-offset-2', 'ring-indigo-500'));
-            document.getElementById(`theme-btn-${color}`).classList.add('ring-4', 'ring-offset-2', 'ring-indigo-500');
+        const selectThemeColor = color => {
+            selectedThemeColor = /^#[0-9a-f]{6}$/i.test(color || '') ? color.toLowerCase() : (legacyColors[color] ? color : 'slate');
+            document.querySelectorAll('.theme-selector, .theme-extra-selector').forEach(btn => btn.classList.remove('ring-4', 'ring-offset-2', 'ring-indigo-500'));
+            const preset = document.getElementById(`theme-btn-${selectedThemeColor}`);
+            if (preset) preset.classList.add('ring-4', 'ring-offset-2', 'ring-indigo-500');
+            const extra = Array.from(document.querySelectorAll('.theme-extra-selector')).find(btn => btn.dataset.color === selectedThemeColor);
+            if (extra) extra.classList.add('ring-4', 'ring-offset-2', 'ring-indigo-500');
+            const hex = cleanColor(selectedThemeColor);
+            document.getElementById('theme-custom-color').value = hex;
+            document.getElementById('theme-color-value').textContent = hex;
         };
 
         const selectIcon = (iconClass) => {
@@ -1064,6 +1237,7 @@
             });
         };
         const saveEditedItem = async () => {
+            if (editingCoverProcessing) return showAlert('Please wait for the cover picture to finish processing.');
             if (!requireBackup()) return;
             const newName = document.getElementById('edit-item-name').value.trim();
             if (!newName || newName.includes('/') || newName === '_root') return showAlert('Please use a name without / or _root.');
@@ -1076,14 +1250,14 @@
             let changes = [];
             if (editingItemType === 'folder') {
                 if (oldPath !== newPath) transformFolder(oldPath, newPath, nf, nfm, nsm);
-                nfm[newPath] = {...(nfm[newPath] || {}), color: selectedThemeColor, icon: iconChoice};
+                nfm[newPath] = {...(nfm[newPath] || {}), color: selectedThemeColor, icon: iconChoice, coverImage: editingCoverImage};
                 changes = deck.filter(c => c.category.startsWith(oldPath + '/')).map(c => ({...c, category: renamePath(c.category, oldPath, newPath)}));
             } else {
                 const idx = nf[editingItemParentPath].indexOf(editingItemOldName);
                 if (idx < 0) return showAlert('Set not found.');
                 nf[editingItemParentPath][idx] = newName;
                 if (oldPath !== newPath) { nsm[newPath] = nsm[oldPath] || {}; delete nsm[oldPath]; }
-                nsm[newPath] = {...(nsm[newPath] || {}), color: selectedThemeColor, icon: iconChoice};
+                nsm[newPath] = {...(nsm[newPath] || {}), color: selectedThemeColor, icon: iconChoice, coverImage: editingCoverImage};
                 changes = deck.filter(c => c.category === oldPath).map(c => ({...c, category: newPath}));
             }
             if (!await commitChange(nf, nfm, nsm, changes)) return;
@@ -1096,42 +1270,62 @@
             }
         };
 
-        const openSetDetail = (setName) => {
+        const detailCardMarkup = c => {
+            const previewText = c.type === 'occlusion' ? 'Image Occlusion Card' : ((c.front || '').replace(/<[^>]*>?/gm, '') || 'Image Card');
+            const backText = c.type === 'occlusion' ? 'Diagram Mask' : ((c.back || '').replace(/<[^>]*>?/gm, '') || 'Image Card');
+            const icon = c.type === 'occlusion' ? '<i class="fa-solid fa-image text-amber-500 mr-2"></i>' : '';
+            return `<div onclick="startBrowseSession('card', '${esc(c.id)}')" class="flashcard-list-row bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center hover:border-indigo-300 group cursor-pointer">
+                <div class="truncate flex-1 pr-4">
+                    <div class="text-sm font-bold text-slate-800 truncate flex items-center">${icon}${escapeHtml(previewText)}</div>
+                    <div class="text-xs text-slate-400 truncate mt-0.5">${escapeHtml(backText)}</div>
+                </div>
+                <div class="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                    <button onclick="event.stopPropagation(); openEditCard('${esc(c.id)}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="event.stopPropagation(); softDeleteCard('${esc(c.id)}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>`;
+        };
+        const appendNextDetailCards = () => {
+            if (detailCardsObserver) { detailCardsObserver.disconnect(); detailCardsObserver = null; }
+            const list = document.getElementById('detail-cards-list');
+            const marker = document.getElementById('detail-load-more');
+            if (marker) marker.remove();
+            const next = detailCardList.slice(detailCardsRendered, detailCardsRendered + DETAIL_BATCH_SIZE);
+            if (next.length) list.insertAdjacentHTML('beforeend', next.map(detailCardMarkup).join(''));
+            detailCardsRendered += next.length;
+            if (detailCardsRendered < detailCardList.length) {
+                list.insertAdjacentHTML('beforeend', `<button id="detail-load-more" onclick="appendNextDetailCards()" class="w-full py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Load more cards (${detailCardList.length - detailCardsRendered} remaining)</button>`);
+                if ('IntersectionObserver' in window) {
+                    detailCardsObserver = new IntersectionObserver(entries => {
+                        if (entries.some(entry => entry.isIntersecting)) appendNextDetailCards();
+                    }, {root: document.querySelector('main'), rootMargin: '240px'});
+                    detailCardsObserver.observe(document.getElementById('detail-load-more'));
+                }
+            }
+        };
+        const openSetDetail = setName => {
             selectedSet = setName;
-            let fullSetName = currentPath === '_root' ? setName : `${currentPath}/${setName}`;
-            
-            let icon = (setMeta[fullSetName] && setMeta[fullSetName].icon) ? setMeta[fullSetName].icon : 'fa-layer-group';
+            const fullSetName = currentPath === '_root' ? setName : `${currentPath}/${setName}`;
+            const metadata = setMeta[fullSetName] || {};
+            const icon = metadata.icon || 'fa-layer-group';
             document.getElementById('detail-set-icon').outerHTML = `<span id="detail-set-icon" class="text-slate-400 text-xl">${iconMarkup(icon)}</span>`;
             document.getElementById('detail-set-title').querySelector('span').innerText = setName;
-
-            const setCards = deck.filter(c => c.category === fullSetName);
-            document.getElementById('detail-set-stats').innerText = `${setCards.length} Cards Total`;
-
-            let color = (setMeta[fullSetName] && setMeta[fullSetName].color) ? setMeta[fullSetName].color : 'slate';
-            let bgThemeMap = { 'slate': 'bg-slate-500', 'indigo': 'bg-indigo-500', 'rose': 'bg-rose-500', 'emerald': 'bg-emerald-500', 'amber': 'bg-amber-500' };
-            document.getElementById('set-detail-header-bg').className = `absolute inset-0 opacity-10 pointer-events-none transition-colors duration-300 ${bgThemeMap[color]}`;
-
-            const listEl = document.getElementById('detail-cards-list');
-            if (setCards.length === 0) {
-                listEl.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed font-medium text-sm">No cards yet. Add one above!</div>`;
-            } else {
-                listEl.innerHTML = setCards.map(c => {
-                    let previewText = c.type === 'occlusion' ? 'Image Occlusion Card' : (c.front.replace(/<[^>]*>?/gm, '') || 'Image Card');
-                    let backText = c.type === 'occlusion' ? 'Diagram Mask' : (c.back.replace(/<[^>]*>?/gm, '') || 'Image Card');
-                    let icon = c.type === 'occlusion' ? '<i class="fa-solid fa-image text-amber-500 mr-2"></i>' : '';
-                    return `
-                    <div onclick="startBrowseSession('card', '${c.id}')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center hover:border-indigo-300 hover:shadow transition-all group cursor-pointer">
-                        <div class="truncate flex-1 pr-4">
-                            <div class="text-sm font-bold text-slate-800 truncate flex items-center">${icon}${previewText}</div>
-                            <div class="text-xs text-slate-400 truncate mt-0.5">${backText}</div>
-                        </div>
-                        <div class="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                            <button onclick="event.stopPropagation(); openEditCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="event.stopPropagation(); softDeleteCard('${c.id}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
+            detailCardList = deck.filter(c => c.category === fullSetName);
+            document.getElementById('detail-set-stats').innerText = `${detailCardList.length} Cards Total`;
+            const cover = document.getElementById('detail-set-cover');
+            const coverUrl = safeCoverImage(metadata.coverImage);
+            cover.classList.toggle('hidden', !coverUrl);
+            if (coverUrl) cover.src = coverUrl;
+            else cover.removeAttribute('src');
+            const themeMap = { slate: 'bg-slate-500', indigo: 'bg-indigo-500', rose: 'bg-rose-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500' };
+            const headerBg = document.getElementById('set-detail-header-bg');
+            headerBg.className = `absolute inset-0 opacity-10 pointer-events-none ${themeMap[metadata.color] || 'bg-slate-500'}`;
+            headerBg.style.backgroundColor = cleanColor(metadata.color);
+            const list = document.getElementById('detail-cards-list');
+            if (detailCardsObserver) { detailCardsObserver.disconnect(); detailCardsObserver = null; }
+            list.innerHTML = detailCardList.length ? '' : '<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-slate-200 border-dashed font-medium text-sm">No cards yet. Add one above!</div>';
+            detailCardsRendered = 0;
+            if (detailCardList.length) appendNextDetailCards();
             switchView('set-detail');
         };
 
@@ -1305,7 +1499,7 @@
             footBackEl.classList.add('hidden');
 
             if (card.type === 'occlusion') {
-                let imgHtml = `<div class="relative inline-block max-w-full"><img src="${card.imageFront}" class="max-h-64 rounded-lg">`;
+                let imgHtml = `<div class="relative inline-block max-w-full"><img src="${card.imageFront}" class="max-h-[440px] max-w-full object-contain rounded-lg">`;
                 let frontMasks = card.masks.map((m, i) => {
                     let isTarget = (i === card.targetIndex);
                     return `<div class="occlusion-mask ${isTarget ? 'target-mask' : ''}" style="left:${m.left}%; top:${m.top}%; width:${m.width}%; height:${m.height}%;">
@@ -1318,15 +1512,18 @@
                 backEl.innerHTML = `<div class="card-content">` + imgHtml + backMasks + `</div></div>`;
 
             } else {
-                let fHtml = card.front || '';
-                if (card.imageFront) fHtml += `<br><img src="${card.imageFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
-                if (card.drawingFront) fHtml += `<br><img src="${card.drawingFront}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
-                frontEl.innerHTML = `<div class="card-content">${fHtml}</div>`;
-
-                let bHtml = card.back || '';
-                if (card.imageBack) bHtml += `<br><img src="${card.imageBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200">`;
-                if (card.drawingBack) bHtml += `<br><img src="${card.drawingBack}" class="max-h-48 mx-auto mt-4 rounded-xl border border-slate-200 bg-white">`;
-                backEl.innerHTML = `<div class="card-content">${bHtml}</div>`;
+                const renderSide = (text, image, drawing) => {
+                    const pictures = [image, drawing].filter(Boolean);
+                    if (!pictures.length) return `<div class="card-content">${text || ''}</div>`;
+                    const imageHtml = pictures.map(src => `<img src="${src}" alt="Flashcard illustration" decoding="async">`).join('');
+                    const hasText = Boolean((text || '').replace(/<[^>]*>/g, '').trim());
+                    return `<div class="card-content card-split ${hasText ? '' : 'image-only'}">
+                        ${hasText ? `<div class="card-text">${text}</div>` : ''}
+                        <div class="card-image-stack">${imageHtml}</div>
+                    </div>`;
+                };
+                frontEl.innerHTML = renderSide(card.front, card.imageFront, card.drawingFront);
+                backEl.innerHTML = renderSide(card.back, card.imageBack, card.drawingBack);
 
                 if (card.footnoteFront) {
                     footFrontEl.innerText = card.footnoteFront;
@@ -1552,6 +1749,13 @@
             lastGreekRange = range.cloneRange();
             editor.dispatchEvent(new Event('input', { bubbles: true }));
         };
+        const toggleGreekPicker = (force = null) => {
+            const picker = document.getElementById('greek-picker');
+            const open = force === null ? picker.classList.contains('hidden') : Boolean(force);
+            picker.classList.toggle('hidden', !open);
+            document.getElementById('greek-picker-toggle').setAttribute('aria-expanded', String(open));
+            document.getElementById('greek-toggle-chevron').className = `fa-solid fa-chevron-${open ? 'up' : 'down'} text-[10px]`;
+        };
         const greekCharacters = 'α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ ς τ υ φ χ ψ ω Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω';
         document.getElementById('greek-character-buttons').replaceChildren(
             ...greekCharacters.split(' ').map(character => {
@@ -1571,6 +1775,7 @@
 
         const openCardEditor = () => {
             editingCardId = null;
+            toggleGreekPicker(false);
             document.getElementById('editor-title').innerText = "Add New Card";
             document.getElementById('editor-front').innerHTML = ''; document.getElementById('editor-back').innerHTML = '';
             document.getElementById('editor-draw-front').value = ''; document.getElementById('editor-draw-back').value = '';
@@ -1583,6 +1788,7 @@
             const card = deck.find(c => c.id === id); if (!card) return;
             if (card.type === 'occlusion') return showAlert("Diagram cards cannot be edited yet. Please delete and recreate.");
             editingCardId = id;
+            toggleGreekPicker(false);
             document.getElementById('editor-title').innerText = "Edit Card";
             document.getElementById('editor-front').innerHTML = card.front; document.getElementById('editor-back').innerHTML = card.back;
             document.getElementById('editor-draw-front').value = card.drawingFront || ''; document.getElementById('editor-draw-back').value = card.drawingBack || '';
@@ -1892,7 +2098,8 @@
             endMaskDraw, clearDiagramMasks, undoLastMask, generateDiagramCards, closeModal, createFolder,
             createSet, selectThemeColor, saveEditedItem, openSetDetail, softDeleteCard, openEditCard, saveCard,
             openMoveModal, startCustomStudy, drawInsertImage, setDrawTool, navigateBrowse, startBrowseSession,
-            editCurrentSet, deleteCurrentSet, selectIcon, toggleCalendar, moveEditedItem, deleteEditedItem, softDeleteFolder
+            editCurrentSet, deleteCurrentSet, selectIcon, toggleCalendar, moveEditedItem, deleteEditedItem, softDeleteFolder,
+            handleItemCoverUpload, removeItemCover, toggleGreekPicker, appendNextDetailCards
         });
 
         // Fire it up
