@@ -151,7 +151,7 @@
                                 <i className="fa-solid fa-bolt"></i>
                             </div>
                             <h1 className="text-2xl font-bold text-slate-800">Lumina Flash</h1>
-                            <p className="text-slate-500 text-sm mt-2 text-center">Sign in to sync your neuroscience and biology decks globally.</p>
+                            <p className="text-slate-500 text-sm mt-2 text-center">Sign in to sync your decks globally.</p>
                         </div>
                         {error && <div className="bg-rose-50 text-rose-600 p-3 rounded-xl text-sm mb-4 border border-rose-100">{error}</div>}
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -327,7 +327,7 @@
                         </span>
                     </div>
 
-                    {/* Content Area - Grid Center Fixes Image/Text Cutoff Bug */}
+                    {/* Content Area - Safe Scrolling without Top Clipping */}
                     <div className="flex-1 w-full overflow-y-auto custom-scrollbar relative">
                         <div className="grid place-items-center min-h-full py-4">
                             <div className="flex flex-col items-center gap-6 w-full">
@@ -360,7 +360,10 @@
             const [showBack, setShowBack] = useState(false);
             
             if(cards.length === 0) return (
-                <div className="flex-1 flex flex-col items-center justify-center"><p className="text-slate-500">No cards to browse.</p><button onClick={onBack} className="mt-4 text-indigo-600 font-bold">Go Back</button></div>
+                <div className="flex-1 flex flex-col items-center justify-center p-4">
+                    <p className="text-slate-500">No cards to browse.</p>
+                    <button onClick={onBack} className="mt-4 text-indigo-600 font-bold">Go Back</button>
+                </div>
             );
             
             const next = () => { setIdx((i) => (i + 1) % cards.length); setShowBack(false); };
@@ -469,7 +472,6 @@
 
             useEffect(() => {
                 const unsub = auth.onAuthStateChanged(u => {
-                    // Only accept real accounts now
                     if (u && !u.isAnonymous) setUser(u);
                     else setUser(null);
                     setLoading(false);
@@ -489,15 +491,48 @@
             if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><i className="fa-solid fa-spinner fa-spin text-4xl text-indigo-500"></i></div>;
             if (!user) return <AuthScreen />;
 
-            // --- RECURSIVE DELETE LOGIC ---
+            const rescueData = async () => {
+                if(!confirm("Are you sure you want to attempt to rescue old data? This will scan the root database for unassigned folders, sets, and cards, and attach them securely to your current account.")) return;
+                
+                try {
+                    alert("Starting rescue operation. Please do not close the window.");
+                    const userRef = db.collection('users').doc(user.uid);
+                    
+                    // 1. Rescue Folders
+                    const oldFolders = await db.collection('folders').get();
+                    let folderCount = 0;
+                    for(let doc of oldFolders.docs) {
+                        await userRef.collection('folders').doc(doc.id).set(doc.data());
+                        folderCount++;
+                    }
+
+                    // 2. Rescue Sets
+                    const oldSets = await db.collection('sets').get();
+                    let setCount = 0;
+                    for(let doc of oldSets.docs) {
+                        await userRef.collection('sets').doc(doc.id).set(doc.data());
+                        setCount++;
+                    }
+
+                    // 3. Rescue Cards
+                    const oldCards = await db.collection('cards').get();
+                    let cardCount = 0;
+                    for(let doc of oldCards.docs) {
+                        await userRef.collection('cards').doc(doc.id).set(doc.data());
+                        cardCount++;
+                    }
+                    
+                    alert(`Rescue Complete!\nMigrated:\n${folderCount} Folders\n${setCount} Sets\n${cardCount} Cards.\n\nPlease refresh the page.`);
+                } catch (error) {
+                    console.error("Rescue failed:", error);
+                    alert("Rescue failed. Check console for details. Error: " + error.message);
+                }
+            };
+
             const deleteFolder = async (id) => {
                 if(!confirm("Permanently delete this folder and EVERYTHING inside it?")) return;
                 const userRef = db.collection('users').doc(user.uid);
-                
-                // Delete the folder
                 await userRef.collection('folders').doc(id).delete();
-                
-                // Delete nested sets and cards
                 const childSets = sets.filter(s => s.folderId === id);
                 for (const set of childSets) {
                     await userRef.collection('sets').doc(set.id).delete();
@@ -511,7 +546,6 @@
             const deleteSet = async (id) => {
                 if(!confirm("Permanently delete this set and all its cards?")) return;
                 const userRef = db.collection('users').doc(user.uid);
-                
                 await userRef.collection('sets').doc(id).delete();
                 const childCards = cards.filter(c => c.setId === id);
                 for (const card of childCards) {
@@ -519,7 +553,6 @@
                 }
             };
 
-            // --- CREATION LOGIC ---
             const createFolder = async () => {
                 const name = prompt("Folder Name:");
                 if(!name) return;
@@ -534,7 +567,6 @@
                 await db.collection('users').doc(user.uid).collection('sets').add({ name, icon, folderId: currentFolderId, createdAt: Date.now() });
             };
 
-            // --- CALENDAR LOGIC ---
             const getCalendarStats = () => {
                 let today = 0, tomorrow = 0, future = 0;
                 const now = new Date();
@@ -551,7 +583,6 @@
                 return { today, tomorrow, future };
             };
 
-            // Views routing
             if (studySetId) return <StudyView cards={cards.filter(c=>c.setId===studySetId)} setName={sets.find(s=>s.id===studySetId)?.name} onBack={()=>setStudySetId(null)} userId={user.uid} db={db} />;
             if (browseSetId) return <BrowseView cards={cards.filter(c=>c.setId===browseSetId)} setName={sets.find(s=>s.id===browseSetId)?.name} onBack={()=>setBrowseSetId(null)} />;
 
@@ -561,7 +592,6 @@
 
             return (
                 <div className="min-h-screen flex flex-col relative bg-slate-50">
-                    {/* Top Nav */}
                     <header className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shrink-0 z-20">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentFolderId(null)}>
                             <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow-sm"><i className="fa-solid fa-bolt"></i></div>
@@ -575,50 +605,16 @@
                             <div className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
                                 <i className="fa-solid fa-cloud-check mr-1"></i> <span className="hidden sm:inline">Synced</span>
                             </div>
-                            <button onClick={async () => {
-                                if(!confirm("Are you sure you want to attempt to rescue old data? This will scan the root database for unassigned folders, sets, and cards, and attach them to your current account.")) return;
-                                
-                                try {
-                                    alert("Starting rescue operation. Please do not close the window.");
-                                    const userRef = db.collection('users').doc(user.uid);
-                                    
-                                    // 1. Rescue Folders
-                                    const oldFolders = await db.collection('folders').get();
-                                    let folderCount = 0;
-                                    for(let doc of oldFolders.docs) {
-                                        await userRef.collection('folders').doc(doc.id).set(doc.data());
-                                        folderCount++;
-                                    }
-
-                                    // 2. Rescue Sets
-                                    const oldSets = await db.collection('sets').get();
-                                    let setCount = 0;
-                                    for(let doc of oldSets.docs) {
-                                        await userRef.collection('sets').doc(doc.id).set(doc.data());
-                                        setCount++;
-                                    }
-
-                                    // 3. Rescue Cards
-                                    const oldCards = await db.collection('cards').get();
-                                    let cardCount = 0;
-                                    for(let doc of oldCards.docs) {
-                                        await userRef.collection('cards').doc(doc.id).set(doc.data());
-                                        cardCount++;
-                                    }
-                                    
-                                    alert(`Rescue Complete!\nMigrated:\n${folderCount} Folders\n${setCount} Sets\n${cardCount} Cards.\n\nPlease refresh the page.`);
-                                } catch (error) {
-                                    console.error("Rescue failed:", error);
-                                    alert("Rescue failed. Check console for details. Error: " + error.message);
-                                }
-                            }} className="bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                            
+                            {/* THE RESCUE BUTTON */}
+                            <button onClick={rescueData} className="bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-2">
                                 <i className="fa-solid fa-life-ring"></i> Rescue Old Data
                             </button>
+
                             <button onClick={()=>{if(confirm("Log out?")) auth.signOut();}} className="text-sm font-bold text-slate-400 hover:text-rose-500">Out</button>
                         </div>
                     </header>
 
-                    {/* Calendar Sidebar Drawer */}
                     {showCalendar && (
                         <div className="absolute right-0 top-14 bottom-0 w-72 bg-white border-l border-slate-200 shadow-2xl z-10 p-6 flex flex-col animate-[fadeIn_0.2s_ease-out]">
                             <div className="flex justify-between items-center mb-6">
@@ -639,13 +635,9 @@
                                     <span className="bg-slate-300 text-slate-600 text-xs font-bold px-2 py-1 rounded-full shadow-sm">{stats.future}</span>
                                 </div>
                             </div>
-                            <div className="mt-auto pt-4 border-t border-slate-100 text-xs text-slate-400 leading-relaxed text-center">
-                                Lumina uses a custom SM-2 algorithm to predict when you are likely to forget a concept.
-                            </div>
                         </div>
                     )}
 
-                    {/* Main Dashboard */}
                     <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                             <div className="flex items-center text-sm font-bold text-slate-500 gap-2">
@@ -666,14 +658,12 @@
                         )}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {/* FOLDERS */}
                             {visFolders.map(f => (
                                 <div key={f.id} onClick={()=>setCurrentFolderId(f.id)} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition cursor-pointer group flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 text-lg">{f.icon || '📁'}</div>
                                         <h3 className="font-bold text-slate-800">{f.name}</h3>
                                     </div>
-                                    {/* Recursive Delete Folder Button */}
                                     <div className="relative group/menu">
                                         <button className="text-slate-400 hover:text-slate-600 p-2"><i className="fa-solid fa-ellipsis-vertical"></i></button>
                                         <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-32 overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition z-10">
@@ -683,7 +673,6 @@
                                 </div>
                             ))}
 
-                            {/* SETS */}
                             {visSets.map(s => {
                                 const sCards = cards.filter(c=>c.setId===s.id);
                                 const due = sCards.filter(c=>c.nextReview<=Date.now()).length;
@@ -694,7 +683,6 @@
                                                 <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 text-lg">{s.icon || '📄'}</div>
                                                 <h3 className="font-bold text-slate-800 line-clamp-2">{s.name}</h3>
                                             </div>
-                                            {/* Set Menu: Browse and Delete */}
                                             <div className="relative group/menu">
                                                 <button className="text-slate-400 hover:text-slate-600 p-1"><i className="fa-solid fa-ellipsis-vertical"></i></button>
                                                 <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-32 overflow-hidden opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition z-10">
