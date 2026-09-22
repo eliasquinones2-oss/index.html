@@ -40,7 +40,7 @@
             const [folders, setFolders] = useState([]);
             const [sets, setSets] = useState([]);
             const [cards, setCards] = useState([]);
-            const [currentView, setCurrentView] = useState('home'); // 'home', 'set', 'study', 'browse'
+            const [currentView, setCurrentView] = useState('home');
             const [activeSet, setActiveSet] = useState(null);
             const [showImportModal, setShowImportModal] = useState(false);
             const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -71,15 +71,21 @@
                     const data = JSON.parse(importText);
                     const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
                     
-                    if (data.folders) {
-                        for (const f of data.folders) await userRef.collection('folders').doc(f.id || Date.now().toString()).set(f);
+                    // Handle array or object structures safely
+                    const foldersList = Array.isArray(data.folders) ? data.folders : Object.entries(data.folders || {}).map(([k, v]) => ({ id: k, name: k, ...v }));
+                    const setsList = Array.isArray(data.sets) ? data.sets : Object.entries(data.sets || {}).map(([k, v]) => ({ id: k, name: k, ...v }));
+                    const cardsList = Array.isArray(data.cards) ? data.cards : Object.entries(data.cards || {}).map(([k, v]) => ({ id: k, ...v }));
+
+                    for (const f of foldersList) {
+                        await userRef.collection('folders').doc(f.id || Date.now().toString()).set(f, { merge: true });
                     }
-                    if (data.sets) {
-                        for (const s of data.sets) await userRef.collection('sets').doc(s.id || Date.now().toString()).set(s);
+                    for (const s of setsList) {
+                        await userRef.collection('sets').doc(s.id || Date.now().toString()).set(s, { merge: true });
                     }
-                    if (data.cards) {
-                        for (const c of data.cards) await userRef.collection('cards').doc(c.id || Date.now().toString()).set(c);
+                    for (const c of cardsList) {
+                        await userRef.collection('cards').doc(c.id || Date.now().toString()).set(c, { merge: true });
                     }
+
                     alert("Import successful!");
                     setShowImportModal(false);
                     loadAllData(user.uid);
@@ -89,26 +95,14 @@
             };
 
             const deleteFolder = async (folderId) => {
-                if (!confirm("Delete folder and all its sets/cards?")) return;
+                if (!confirm("Delete folder and all its sets?")) return;
                 const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
                 await userRef.collection('folders').doc(folderId).delete();
-                // Delete sets belonging to this folder
                 const childSets = sets.filter(s => s.folderId === folderId);
                 for (const s of childSets) {
                     await userRef.collection('sets').doc(s.id).delete();
                 }
                 loadAllData(user.uid);
-            };
-
-            const exportData = () => {
-                const exportObj = { folders, sets, cards };
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
-                const dlAnchor = document.createElement('a');
-                dlAnchor.setAttribute("href", dataStr);
-                dlAnchor.setAttribute("download", "lumina_flash_backup.json");
-                document.body.appendChild(dlAnchor);
-                dlAnchor.click();
-                dlAnchor.remove();
             };
 
             if (loading) return <div className="p-10 text-center font-bold">Loading Lumina Flash...</div>;
@@ -133,7 +127,6 @@
                         <div className="flex items-center gap-2">
                             <button onClick={() => setShowCalendarModal(true)} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-slate-200">📅 Calendar</button>
                             <button onClick={() => setShowImportModal(true)} className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-emerald-200 hover:bg-emerald-100">📥 Import</button>
-                            <button onClick={exportData} className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-200 hover:bg-blue-100">📤 Export</button>
                             <button onClick={() => auth.signOut()} className="text-sm text-red-500 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50">Sign Out</button>
                         </div>
                     </header>
@@ -145,10 +138,9 @@
                                     <h2 className="text-lg font-bold text-slate-700">Your Folders</h2>
                                     <button onClick={async () => {
                                         const name = prompt("Folder Name:");
-                                        const icon = prompt("Folder Icon/Emoji (optional):", "📁");
                                         if (name) {
                                             const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
-                                            await userRef.collection('folders').add({ name, icon: icon || "📁", createdAt: Date.now() });
+                                            await userRef.collection('folders').add({ name, icon: "📁", createdAt: Date.now() });
                                             loadAllData(user.uid);
                                         }
                                     }} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">+ New Folder</button>
@@ -161,29 +153,14 @@
                                                 <h3 className="font-bold text-lg">{f.icon || "📁"} {f.name}</h3>
                                                 <p className="text-xs text-slate-400">{sets.filter(s => s.folderId === f.id).length} study sets</p>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => {
-                                                    const newName = prompt("Edit folder name:", f.name);
-                                                    if (newName) {
-                                                        db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid).collection('folders').doc(f.id).update({ name: newName }).then(() => loadAllData(user.uid));
-                                                    }
-                                                }} className="text-slate-400 hover:text-slate-600 p-1">✏️</button>
-                                                <button onClick={() => deleteFolder(f.id)} className="text-red-400 hover:text-red-600 p-1">🗑️</button>
-                                            </div>
+                                            <button onClick={() => deleteFolder(f.id)} className="text-red-400 hover:text-red-600 p-1 font-bold">🗑️</button>
                                         </div>
                                     ))}
+                                    {folders.length === 0 && <p className="text-slate-400 text-sm">No folders yet. Click "Import" above to load your JSON backup!</p>}
                                 </div>
 
                                 <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-lg font-bold text-slate-700">All Study Sets</h2>
-                                    <button onClick={async () => {
-                                        const name = prompt("Study Set Name:");
-                                        if (name) {
-                                            const userRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid);
-                                            await userRef.collection('sets').add({ name, folderId: folders[0]?.id || 'none', createdAt: Date.now() });
-                                            loadAllData(user.uid);
-                                        }
-                                    }} className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow">+ New Set</button>
+                                    <h2 className="text-lg font-bold text-slate-700">Study Sets</h2>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -208,7 +185,7 @@
                                 <button onClick={() => setCurrentView('home')} className="mb-4 text-sm font-bold text-blue-600">← Back to Home</button>
                                 <div className="bg-white p-8 rounded-2xl shadow border text-center">
                                     <h2 className="text-xl font-bold mb-4">Studying: {activeSet.name}</h2>
-                                    <p className="text-slate-500">Study session active. Cards count: {cards.filter(c => c.setId === activeSet.id).length}</p>
+                                    <p className="text-slate-500">Cards in set: {cards.filter(c => c.setId === activeSet.id).length}</p>
                                 </div>
                             </div>
                         )}
@@ -219,16 +196,11 @@
                                 <div className="bg-white p-8 rounded-2xl shadow border">
                                     <h2 className="text-xl font-bold mb-4">Browsing: {activeSet.name}</h2>
                                     <div className="space-y-3">
-                                        {cards.filter(c => c.setId === activeSet.id).map((c, i) => (
+                                        {cards.filter(c => c.setId === activeSet.id).map((c) => (
                                             <div key={c.id} className="p-4 border rounded-xl flex justify-between items-center">
                                                 <div>
-                                                    <p className="font-bold text-sm">Front: {c.front}</p>
-                                                    <p className="text-xs text-slate-500">Back: {c.back}</p>
+                                                    <p className="font-bold text-sm">Front: {c.front || c.question || JSON.stringify(c)}</p>
                                                 </div>
-                                                <button onClick={async () => {
-                                                    await db.collection('artifacts').doc('lumina-flash-6298f').collection('users').doc(user.uid).collection('cards').doc(c.id).delete();
-                                                    loadAllData(user.uid);
-                                                }} className="text-red-400 text-xs">Delete</button>
                                             </div>
                                         ))}
                                     </div>
@@ -241,7 +213,7 @@
                         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                             <div className="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl">
                                 <h3 className="text-lg font-bold mb-2">Import Flashcard Data</h3>
-                                <p className="text-xs text-slate-500 mb-4">Paste your backup JSON structure below to restore folders, sets, and cards.</p>
+                                <p className="text-xs text-slate-500 mb-4">Paste your exported JSON structure below.</p>
                                 <textarea value={importText} onChange={e => setImportText(e.target.value)} placeholder='Paste JSON here...' className="w-full h-48 p-3 border rounded-xl text-xs font-mono mb-4 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                                 <div className="flex justify-end gap-2">
                                     <button onClick={() => setShowImportModal(false)} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100">Cancel</button>
@@ -255,10 +227,8 @@
                         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                             <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl">
                                 <h3 className="text-lg font-bold mb-2">Study Calendar</h3>
-                                <p className="text-xs text-slate-500 mb-4">Review schedule for your decks across all sets.</p>
                                 <div className="space-y-2 mb-6">
                                     <div className="p-3 bg-blue-50 text-blue-800 rounded-xl font-bold text-sm flex justify-between"><span>Due Today</span><span>0 cards</span></div>
-                                    <div className="p-3 bg-slate-50 text-slate-700 rounded-xl font-bold text-sm flex justify-between"><span>Due Tomorrow</span><span>0 cards</span></div>
                                 </div>
                                 <button onClick={() => setShowCalendarModal(false)} className="w-full bg-slate-900 text-white py-2 rounded-xl text-sm font-bold">Close</button>
                             </div>
