@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lumina Flash SRS - Harvester</title>
+    <title>Lumina Flash SRS - Direct Rescue</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -44,70 +44,50 @@
             if (!user) return (
                 <div className="p-10 text-center max-w-md mx-auto mt-20 bg-white rounded-xl shadow border">
                     <h1 className="text-xl font-bold mb-2">Lumina Flash</h1>
-                    <p className="text-sm text-gray-500 mb-4">Please sign in to harvest your old data.</p>
-                    <button onClick={() => {
-                        const email = prompt("Email:");
-                        const pass = prompt("Password:");
-                        if(email && pass) auth.signInWithEmailAndPassword(email, pass);
-                    }} className="bg-blue-600 text-white px-4 py-2 rounded font-medium w-full mb-2">Sign In</button>
-                    <button onClick={() => auth.signInAnonymously()} className="bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium w-full">Sign In Anonymously</button>
+                    <p className="text-sm text-gray-500 mb-4">Please sign in first.</p>
+                    <button onClick={() => auth.signInAnonymously()} className="bg-blue-600 text-white px-4 py-2 rounded font-medium w-full">Sign In</button>
                 </div>
             );
 
-            const harvestAllData = async () => {
+            const rescueTargetData = async () => {
                 try {
-                    setStatus("Scanning all user folders in Firebase...");
+                    setStatus("Targeting source folder: 3zQgFMdcOGYS7ytCRnaGwPUFKSl2...");
                     const usersRef = db.collection('artifacts').doc('lumina-flash-6298f').collection('users');
-                    const userDocs = await usersRef.get();
+                    
+                    const sourceUserId = "3zQgFMdcOGYS7ytCRnaGwPUFKSl2";
+                    const sourceRef = usersRef.doc(sourceUserId);
+                    const targetRef = usersRef.doc(user.uid);
 
-                    let totalFolders = 0;
-                    let totalSets = 0;
-                    let totalCards = 0;
+                    let count = 0;
 
-                    const targetUserRef = usersRef.doc(user.uid);
-
-                    for (const doc of userDocs.docs) {
-                        const oldUserId = doc.id;
-                        if (oldUserId === user.uid) continue;
-
-                        const [fSnap, sSnap, cSnap] = await Promise.all([
-                            usersRef.doc(oldUserId).collection('folders').get(),
-                            usersRef.doc(oldUserId).collection('sets').get(),
-                            usersRef.doc(oldUserId).collection('cards').get()
-                        ]);
-
-                        for (const f of fSnap.docs) {
-                            await targetUserRef.collection('folders').doc(f.id).set(f.data(), { merge: true });
-                            totalFolders++;
-                        }
-                        for (const s of sSnap.docs) {
-                            await targetUserRef.collection('sets').doc(s.id).set(s.data(), { merge: true });
-                            totalSets++;
-                        }
-                        for (const c of cSnap.docs) {
-                            await targetUserRef.collection('cards').doc(c.id).set(c.data(), { merge: true });
-                            totalCards++;
+                    // Grab all subcollections or direct collections if any exist
+                    const collectionsToPull = ['cards', 'sets', 'folders', 'metadata'];
+                    for (const colName of collectionsToPull) {
+                        const snap = await sourceRef.collection(colName).get();
+                        for (const doc of snap.docs) {
+                            await targetRef.collection(colName).doc(doc.id).set(doc.data(), { merge: true });
+                            count++;
                         }
                     }
 
-                    setStatus(`Harvest Complete! Successfully imported: ${totalFolders} folders, ${totalSets} sets, and ${totalCards} cards into your account. Please refresh!`);
+                    setStatus(`Rescue Complete! Successfully pulled ${count} items into your account. Refresh your app!`);
                 } catch (e) {
-                    setStatus("Error during harvest: " + e.message);
+                    setStatus("Error during rescue: " + e.message);
                 }
             };
 
             return (
                 <div className="p-6 max-w-4xl mx-auto">
                     <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border">
-                        <h1 className="text-xl font-bold">Lumina Flash Data Harvester</h1>
-                        <button onClick={() => auth.signOut()} className="text-sm text-red-500 font-medium">Sign Out</button>
+                        <h1 className="text-xl font-bold">Lumina Flash Direct Rescue</h1>
+                        <span className="text-xs text-gray-500">ID: {user.uid}</span>
                     </div>
 
                     <div className="bg-white p-8 rounded-xl shadow-sm border text-center">
-                        <h2 className="text-lg font-bold mb-2 text-gray-800">Ready to pull your old flashcards?</h2>
-                        <p className="text-sm text-gray-500 mb-6">Clicking this button will scan all of those user folders shown in your Firebase console and merge your flashcards into your current account.</p>
-                        <button onClick={harvestAllData} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition">
-                            Auto-Harvest All Old Data
+                        <h2 className="text-lg font-bold mb-2 text-gray-800">Ready to pull your Anatomy cards?</h2>
+                        <p className="text-sm text-gray-500 mb-6">This will copy all cards from your old storage ID directly into your active account.</p>
+                        <button onClick={rescueTargetData} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition">
+                            Rescue Cards Now
                         </button>
                         {status && <div className="mt-6 p-4 bg-blue-50 text-blue-800 rounded-lg text-sm font-medium">{status}</div>}
                     </div>
