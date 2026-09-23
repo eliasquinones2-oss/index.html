@@ -27,6 +27,10 @@
             transform-style: preserve-3d;
         }
         .card-flip-inner.flipped { transform: rotateY(180deg); }
+        /* Replacing a card must never animate its previous answer back into view. */
+        .card-flip-inner.resetting { transition: none !important; }
+        /* Don't paint the new answer until the user explicitly flips the new card. */
+        .card-flip-inner:not(.flipped) .card-back { visibility: hidden; }
         .card-front, .card-back {
             position: absolute;
             width: 100%;
@@ -1517,8 +1521,18 @@
         });
         window.fitOcclusionImage = fitOcclusionImage;
 
+        let cardResetGeneration = 0;
         const renderStudyCard = (card) => {
-            document.getElementById('flashcard-inner').classList.remove('flipped');
+            const inner = document.getElementById('flashcard-inner');
+            // Disable the *reverse* flip before putting another card's content in the DOM.
+            // Otherwise the old 180° -> 0° animation briefly shows the new answer.
+            const generation = ++cardResetGeneration;
+            inner.classList.add('resetting');
+            inner.classList.remove('flipped');
+            void inner.offsetWidth; // Apply the unflipped state with transitions disabled.
+            requestAnimationFrame(() => {
+                if (generation === cardResetGeneration) inner.classList.remove('resetting');
+            });
             if(sessionMode === 'study') document.getElementById('grading-buttons').classList.add('hidden');
             
             if(sessionMode === 'browse') {
