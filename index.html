@@ -556,6 +556,31 @@
                         <label class="text-xs font-bold text-slate-500 uppercase">Back Footnote (Optional Info)</label>
                         <textarea id="editor-footnote" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm italic text-slate-600 focus:border-indigo-500 outline-none" placeholder="Mnemonics, sources, extra context..."></textarea>
                     </div>
+
+                    <div class="pt-2 border-t border-slate-100">
+                        <button type="button" id="sequence-panel-toggle" onclick="toggleSequencePanel()" aria-controls="sequence-panel" aria-expanded="false" class="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-list-ol"></i> Process / Sequence</span>
+                            <i id="sequence-panel-chevron" class="fa-solid fa-chevron-down text-xs"></i>
+                        </button>
+                        <div id="sequence-panel" class="hidden mt-2 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-3">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+                                <input id="sequence-enabled" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-indigo-600" onchange="toggleSequenceFields()">
+                                This card is one step in a process
+                            </label>
+                            <div id="sequence-fields" class="grid grid-cols-1 md:grid-cols-[1fr_120px] gap-3 opacity-50 pointer-events-none">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Process name</label>
+                                    <input id="sequence-name" list="sequence-name-list" type="text" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. Complement activation">
+                                    <datalist id="sequence-name-list"></datalist>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Step</label>
+                                    <input id="sequence-order" type="number" min="1" step="1" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Auto">
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 leading-relaxed">Cards with the same process name stay together during study and appear in step order. Leave Step blank to automatically use the next number.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex gap-3 pt-4 shrink-0 border-t border-slate-100">
@@ -689,7 +714,8 @@
         let sessionMode = 'study'; // 'study' (SRS) or 'browse' (Free Review)
         let activeStudyTarget = { type: null, path: null }; 
         let currentCardIndex = -1;
-        let browseCardsList = []; 
+        let browseCardsList = [];
+        let sequenceQueue = []; 
         
         let editingCardId = null;
         let editingItemType = null; 
@@ -1287,6 +1313,48 @@
             }
         };
 
+        const sequenceKey = card => card && card.sequenceName ? `${card.category}::${String(card.sequenceName).trim().toLowerCase()}` : '';
+        const sequenceOrderValue = card => {
+            const n = Number(card?.sequenceOrder);
+            return Number.isFinite(n) && n > 0 ? n : Number.MAX_SAFE_INTEGER;
+        };
+        const sequenceBadgeMarkup = card => {
+            if (!card?.sequenceName) return '';
+            const step = Number(card.sequenceOrder) > 0 ? ` · Step ${Number(card.sequenceOrder)}` : '';
+            return `<span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600 shrink-0"><i class="fa-solid fa-list-ol"></i>${escapeHtml(card.sequenceName)}${step}</span>`;
+        };
+        const populateSequenceNames = category => {
+            const list = document.getElementById('sequence-name-list');
+            if (!list) return;
+            const names = [...new Set(deck.filter(c => c.category === category && c.sequenceName).map(c => String(c.sequenceName).trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+            list.replaceChildren(...names.map(name => { const option = document.createElement('option'); option.value = name; return option; }));
+        };
+        const toggleSequencePanel = force => {
+            const panel = document.getElementById('sequence-panel');
+            const button = document.getElementById('sequence-panel-toggle');
+            const chevron = document.getElementById('sequence-panel-chevron');
+            if (!panel) return;
+            const open = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !open);
+            if (button) button.setAttribute('aria-expanded', String(open));
+            if (chevron) chevron.className = `fa-solid ${open ? 'fa-chevron-up' : 'fa-chevron-down'} text-xs`;
+        };
+        const toggleSequenceFields = () => {
+            const enabled = !!document.getElementById('sequence-enabled')?.checked;
+            const fields = document.getElementById('sequence-fields');
+            if (fields) {
+                fields.classList.toggle('opacity-50', !enabled);
+                fields.classList.toggle('pointer-events-none', !enabled);
+            }
+            ['sequence-name','sequence-order'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !enabled; });
+        };
+        const nextSequenceOrder = (category, name, excludeId = null) => {
+            const normalized = String(name || '').trim().toLowerCase();
+            const values = deck.filter(c => c.id !== excludeId && c.category === category && String(c.sequenceName || '').trim().toLowerCase() === normalized)
+                .map(c => Number(c.sequenceOrder)).filter(n => Number.isFinite(n) && n > 0);
+            return values.length ? Math.max(...values) + 1 : 1;
+        };
+
         const detailCardMarkup = c => {
             const previewText = c.type === 'occlusion' ? 'Image Occlusion Card' : ((c.front || '').replace(/<[^>]*>?/gm, '') || 'Image Card');
             const backText = c.type === 'occlusion' ? 'Diagram Mask' : ((c.back || '').replace(/<[^>]*>?/gm, '') || 'Image Card');
@@ -1295,6 +1363,7 @@
                 <div class="truncate flex-1 pr-4">
                     <div class="text-sm font-bold text-slate-800 truncate flex items-center">${icon}${escapeHtml(previewText)}</div>
                     <div class="text-xs text-slate-400 truncate mt-0.5">${escapeHtml(backText)}</div>
+                    ${c.sequenceName ? `<div class="mt-1">${sequenceBadgeMarkup(c)}</div>` : ''}
                 </div>
                 <div class="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <button onclick="event.stopPropagation(); openEditCard('${esc(c.id)}')" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center"><i class="fa-solid fa-pen"></i></button>
@@ -1427,6 +1496,7 @@
 
         const startStudySession = (type = 'set', targetPath = null, mode = 'study', triggerType = 'set') => {
             sessionMode = mode;
+            sequenceQueue = [];
             if(type === 'set' && triggerType === 'set') targetPath = targetPath || (currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`);
             
             let activeDeck = [];
@@ -1484,17 +1554,37 @@
             else activeDeck = deck.filter(c => c.category === activeStudyTarget.path);
 
             let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
+            document.getElementById('count-due').innerText = dueCards.length;
+            document.getElementById('count-new').innerText = dueCards.filter(c => c.reps === 0).length;
+
+            // Finish an active process before returning to random cards.
+            while (sequenceQueue.length) {
+                const nextId = sequenceQueue.shift();
+                const queuedCard = activeDeck.find(c => c.id === nextId && c.nextReview <= Date.now());
+                if (queuedCard) {
+                    currentCardIndex = deck.findIndex(c => c.id === queuedCard.id);
+                    renderStudyCard(queuedCard);
+                    return;
+                }
+            }
 
             if (dueCards.length === 0) {
                 showAlert("Session complete! You're caught up.");
                 goBackFromStudy(); return;
             }
 
-            document.getElementById('count-due').innerText = dueCards.length;
-            document.getElementById('count-new').innerText = dueCards.filter(c => c.reps === 0).length;
+            const seed = dueCards[Math.floor(Math.random() * dueCards.length)];
+            let currentCard = seed;
+            if (seed.sequenceName) {
+                const key = sequenceKey(seed);
+                const ordered = dueCards.filter(c => sequenceKey(c) === key).sort((a, b) => {
+                    const stepDiff = sequenceOrderValue(a) - sequenceOrderValue(b);
+                    return stepDiff || String(a.id).localeCompare(String(b.id));
+                });
+                currentCard = ordered.shift() || seed;
+                sequenceQueue = ordered.map(c => c.id);
+            }
 
-            dueCards.sort(() => Math.random() - 0.5); 
-            const currentCard = dueCards[0];
             currentCardIndex = deck.findIndex(c => c.id === currentCard.id);
             renderStudyCard(currentCard);
         };
@@ -1580,7 +1670,8 @@
                         <div class="card-image-stack">${imageHtml}</div>
                     </div>`;
                 };
-                frontEl.innerHTML = renderSide(card.front, card.imageFront, card.drawingFront);
+                const sequenceLabel = card.sequenceName ? `<div class="mb-3 flex justify-center md:justify-start">${sequenceBadgeMarkup(card)}</div>` : '';
+                frontEl.innerHTML = renderSide(sequenceLabel + (card.front || ''), card.imageFront, card.drawingFront);
                 backEl.innerHTML = renderSide(card.back, card.imageBack, card.drawingBack);
 
                 if (card.footnoteFront) {
@@ -1631,6 +1722,7 @@
         };
 
         const goBackFromStudy = () => {
+            sequenceQueue = [];
             if (activeStudyTarget.type === 'set' && selectedSet) openSetDetail(selectedSet);
             else switchView('folders'); 
         };
@@ -1834,10 +1926,17 @@
         const openCardEditor = () => {
             editingCardId = null;
             toggleGreekPicker(false);
+            toggleSequencePanel(false);
             document.getElementById('editor-title').innerText = "Add New Card";
             document.getElementById('editor-front').innerHTML = ''; document.getElementById('editor-back').innerHTML = '';
             document.getElementById('editor-draw-front').value = ''; document.getElementById('editor-draw-back').value = '';
             document.getElementById('editor-footnote-front').value = ''; document.getElementById('editor-footnote').value = '';
+            document.getElementById('sequence-enabled').checked = false;
+            document.getElementById('sequence-name').value = '';
+            document.getElementById('sequence-order').value = '';
+            toggleSequenceFields();
+            const fullSetName = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
+            populateSequenceNames(fullSetName);
             clearUploadedImage('preview-front'); clearUploadedImage('preview-back');
             document.getElementById('editor-modal').classList.remove('hidden'); document.getElementById('editor-front').focus();
         };
@@ -1852,7 +1951,13 @@
             document.getElementById('editor-draw-front').value = card.drawingFront || ''; document.getElementById('editor-draw-back').value = card.drawingBack || '';
             document.getElementById('editor-footnote-front').value = card.footnoteFront || '';
             document.getElementById('editor-footnote').value = card.footnoteBack || card.footnote || '';
-            
+            const hasSequence = !!card.sequenceName;
+            document.getElementById('sequence-enabled').checked = hasSequence;
+            document.getElementById('sequence-name').value = card.sequenceName || '';
+            document.getElementById('sequence-order').value = card.sequenceOrder || '';
+            toggleSequencePanel(hasSequence);
+            toggleSequenceFields();
+            populateSequenceNames(card.category);
             if(card.imageFront) { document.getElementById('preview-front').querySelector('img').src = card.imageFront; document.getElementById('preview-front').classList.remove('hidden'); } else clearUploadedImage('preview-front');
             if(card.imageBack) { document.getElementById('preview-back').querySelector('img').src = card.imageBack; document.getElementById('preview-back').classList.remove('hidden'); } else clearUploadedImage('preview-back');
             document.getElementById('editor-modal').classList.remove('hidden');
@@ -1868,13 +1973,25 @@
 
             if (!front && !imgFront && !drawFront) return showAlert("Front side cannot be totally empty.");
             let fullSetName = currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`;
-            
+
+            const sequenceEnabled = document.getElementById('sequence-enabled').checked;
+            let sequenceName = '';
+            let sequenceOrder = null;
+            if (sequenceEnabled) {
+                sequenceName = document.getElementById('sequence-name').value.trim();
+                if (!sequenceName) return showAlert('Give this process a name so its steps can stay together.');
+                const requestedOrder = Number(document.getElementById('sequence-order').value);
+                sequenceOrder = Number.isFinite(requestedOrder) && requestedOrder > 0
+                    ? Math.floor(requestedOrder)
+                    : nextSequenceOrder(fullSetName, sequenceName, editingCardId);
+            }
+
             let cardObj;
             if (editingCardId) {
                 cardObj = deck.find(c => c.id === editingCardId);
-                Object.assign(cardObj, { front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack });
+                Object.assign(cardObj, { front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack, sequenceName, sequenceOrder });
             } else {
-                cardObj = { id: generateId(), type: 'standard', category: fullSetName, front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack, reps: 0, interval: 1, ease: 2.5, nextReview: 0 };
+                cardObj = { id: generateId(), type: 'standard', category: fullSetName, front, back, imageFront: imgFront, imageBack: imgBack, drawingFront: drawFront, drawingBack: drawBack, footnoteFront, footnoteBack, sequenceName, sequenceOrder, reps: 0, interval: 1, ease: 2.5, nextReview: 0 };
             }
             saveCardToCloud(cardObj); closeModal('editor-modal');
         };
@@ -2157,7 +2274,8 @@
             createSet, selectThemeColor, saveEditedItem, openSetDetail, softDeleteCard, openEditCard, saveCard,
             openMoveModal, startCustomStudy, drawInsertImage, setDrawTool, navigateBrowse, startBrowseSession,
             editCurrentSet, deleteCurrentSet, selectIcon, toggleCalendar, moveEditedItem, deleteEditedItem, softDeleteFolder,
-            handleItemCoverUpload, removeItemCover, toggleGreekPicker, appendNextDetailCards
+            handleItemCoverUpload, removeItemCover, toggleGreekPicker, appendNextDetailCards,
+            toggleSequencePanel, toggleSequenceFields
         });
 
         // Fire it up
