@@ -192,7 +192,10 @@
                                 </button>
                                 <div class="w-px h-6 bg-slate-200 hidden md:block mx-1"></div>
                                 <button onclick="startStudySession('all', null, 'study')" class="flex-1 md:flex-none px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-play"></i> Study All
+                                    <i class="fa-solid fa-calendar-check"></i> Study Due
+                                </button>
+                                <button onclick="startStudySession('all', null, 'study-all')" class="flex-1 md:flex-none px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-layer-group"></i> Study All Cards
                                 </button>
                                 <button onclick="openCustomStudyModal()" class="flex-1 md:flex-none px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-list-check"></i> Custom Study
@@ -235,7 +238,10 @@
                         
                         <div class="flex flex-wrap md:flex-nowrap gap-3 pt-4 border-t border-slate-100 relative z-10">
                                 <button onclick="startStudySession('set', null, 'study')" class="flex-1 md:flex-none py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition-all flex justify-center items-center gap-2">
-                                    <i class="fa-solid fa-play"></i> Study Due Cards
+                                    <i class="fa-solid fa-calendar-check"></i> Study Due Cards
+                                </button>
+                                <button onclick="startStudySession('set', null, 'study-all')" class="flex-1 md:flex-none py-3 px-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl shadow transition-all flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-layer-group"></i> Study All Cards
                                 </button>
                                 <button onclick="startStudySession('set', null, 'browse')" class="flex-1 md:flex-none py-3 px-4 bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold rounded-xl transition-all flex justify-center items-center gap-2">
                                     <i class="fa-solid fa-book-open"></i> Browse Entire Set
@@ -263,8 +269,8 @@
                             </button>
                             
                             <div id="study-stats-header" class="flex gap-4 text-sm font-bold">
-                                <div class="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"><span id="count-new">0</span> <span class="text-blue-400 text-xs uppercase tracking-wider">New</span></div>
-                                <div class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg"><span id="count-due">0</span> <span class="text-amber-400 text-xs uppercase tracking-wider">Due</span></div>
+                                <div class="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-3 py-1 rounded-lg"><span id="count-new">0</span> <span id="count-new-label" class="text-blue-400 text-xs uppercase tracking-wider">New</span></div>
+                                <div class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-lg"><span id="count-due">0</span> <span id="count-due-label" class="text-amber-400 text-xs uppercase tracking-wider">Due</span></div>
                             </div>
 
                             <div id="browse-stats-header" class="hidden text-sm font-bold text-slate-500 bg-slate-100 px-4 py-1.5 rounded-lg border border-slate-200">
@@ -711,7 +717,8 @@
         let currentPath = '_root';
         let selectedSet = null;
         
-        let sessionMode = 'study'; // 'study' (SRS) or 'browse' (Free Review)
+        let sessionMode = 'study'; // 'study' (due SRS), 'study-all' (graded extra study), or 'browse'
+        let studyAllRemaining = new Set();
         let activeStudyTarget = { type: null, path: null }; 
         let currentCardIndex = -1;
         let browseCardsList = [];
@@ -1062,7 +1069,8 @@
                             </div>
                             <div class="flex flex-col gap-1 items-end shrink-0">
                                 <button onclick="event.stopPropagation(); openEditItemModal('folder', '${esc(fName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
-                                <button onclick="event.stopPropagation(); startStudySession('folder', '${esc(fPath)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); startStudySession('folder', '${esc(fPath)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm" title="Study due cards"><i class="fa-solid fa-calendar-check text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); startStudySession('folder', '${esc(fPath)}', 'study-all')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm" title="Study all cards"><i class="fa-solid fa-layer-group text-xs"></i></button>
                             </div>
                         </div>
                         <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
@@ -1090,7 +1098,8 @@
                             </div>
                             <div class="flex flex-col gap-1 items-end shrink-0">
                                 <button onclick="event.stopPropagation(); openEditItemModal('set', '${esc(setName)}', '${esc(currentPath)}')" class="w-6 h-6 rounded text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white transition-all flex items-center justify-center"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
-                                <button onclick="event.stopPropagation(); startStudySession('set', '${esc(fullSetName)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"><i class="fa-solid fa-play text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); startStudySession('set', '${esc(fullSetName)}', 'study')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm" title="Study due cards"><i class="fa-solid fa-calendar-check text-xs"></i></button>
+                                <button onclick="event.stopPropagation(); startStudySession('set', '${esc(fullSetName)}', 'study-all')" class="w-8 h-8 rounded-lg bg-white text-[var(--theme-text)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm" title="Study all cards"><i class="fa-solid fa-layer-group text-xs"></i></button>
                             </div>
                         </div>
                         <div class="mt-auto flex justify-between items-center text-xs font-bold pt-3 border-t border-[var(--theme-border)]">
@@ -1497,6 +1506,7 @@
         const startStudySession = (type = 'set', targetPath = null, mode = 'study', triggerType = 'set') => {
             sessionMode = mode;
             sequenceQueue = [];
+            studyAllRemaining = new Set();
             if(type === 'set' && triggerType === 'set') targetPath = targetPath || (currentPath === '_root' ? selectedSet : `${currentPath}/${selectedSet}`);
             
             let activeDeck = [];
@@ -1519,16 +1529,22 @@
 
             if (activeDeck.length === 0) return showAlert("There are no cards here.");
 
-            if (mode === 'study') {
+            if (mode === 'study' || mode === 'study-all') {
                 document.getElementById('study-stats-header').classList.remove('hidden');
                 document.getElementById('browse-stats-header').classList.add('hidden');
                 document.getElementById('grading-buttons').classList.remove('hidden');
                 document.getElementById('browse-controls').classList.add('hidden');
                 
-                let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
-                if (dueCards.length === 0) return showAlert("You're all caught up! No cards due right now.");
-                
-                document.getElementById('study-back-text').innerText = type === 'custom' ? 'End Custom Study' : 'End Session';
+                if (mode === 'study') {
+                    const dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
+                    if (dueCards.length === 0) return showAlert("You're all caught up! No cards are due right now. Use Study All Cards if you want extra practice.");
+                    document.getElementById('count-due-label').innerText = 'Due';
+                } else {
+                    studyAllRemaining = new Set(activeDeck.map(c => c.id));
+                    document.getElementById('count-due-label').innerText = 'Remaining';
+                }
+                document.getElementById('count-new-label').innerText = 'New';
+                document.getElementById('study-back-text').innerText = type === 'custom' ? 'End Custom Study' : (mode === 'study-all' ? 'End Extra Study' : 'End Session');
                 switchView('study');
                 pickNextCard();
             } else {
@@ -1553,14 +1569,16 @@
             else if (activeStudyTarget.type === 'custom') activeDeck = deck.filter(c => activeStudyTarget.path.includes(c.category));
             else activeDeck = deck.filter(c => c.category === activeStudyTarget.path);
 
-            let dueCards = activeDeck.filter(c => c.nextReview <= Date.now());
-            document.getElementById('count-due').innerText = dueCards.length;
-            document.getElementById('count-new').innerText = dueCards.filter(c => c.reps === 0).length;
+            const eligibleCards = sessionMode === 'study-all'
+                ? activeDeck.filter(c => studyAllRemaining.has(c.id))
+                : activeDeck.filter(c => c.nextReview <= Date.now());
+            document.getElementById('count-due').innerText = eligibleCards.length;
+            document.getElementById('count-new').innerText = eligibleCards.filter(c => c.reps === 0).length;
 
             // Finish an active process before returning to random cards.
             while (sequenceQueue.length) {
                 const nextId = sequenceQueue.shift();
-                const queuedCard = activeDeck.find(c => c.id === nextId && c.nextReview <= Date.now());
+                const queuedCard = activeDeck.find(c => c.id === nextId && (sessionMode === 'study-all' ? studyAllRemaining.has(c.id) : c.nextReview <= Date.now()));
                 if (queuedCard) {
                     currentCardIndex = deck.findIndex(c => c.id === queuedCard.id);
                     renderStudyCard(queuedCard);
@@ -1568,16 +1586,16 @@
                 }
             }
 
-            if (dueCards.length === 0) {
-                showAlert("Session complete! You're caught up.");
+            if (eligibleCards.length === 0) {
+                showAlert(sessionMode === 'study-all' ? "Extra study complete! You reviewed every card in this session." : "Session complete! You're caught up.");
                 goBackFromStudy(); return;
             }
 
-            const seed = dueCards[Math.floor(Math.random() * dueCards.length)];
+            const seed = eligibleCards[Math.floor(Math.random() * eligibleCards.length)];
             let currentCard = seed;
             if (seed.sequenceName) {
                 const key = sequenceKey(seed);
-                const ordered = dueCards.filter(c => sequenceKey(c) === key).sort((a, b) => {
+                const ordered = eligibleCards.filter(c => sequenceKey(c) === key).sort((a, b) => {
                     const stepDiff = sequenceOrderValue(a) - sequenceOrderValue(b);
                     return stepDiff || String(a.id).localeCompare(String(b.id));
                 });
@@ -1623,7 +1641,7 @@
             requestAnimationFrame(() => {
                 if (generation === cardResetGeneration) inner.classList.remove('resetting');
             });
-            if(sessionMode === 'study') document.getElementById('grading-buttons').classList.add('hidden');
+            if(sessionMode === 'study' || sessionMode === 'study-all') document.getElementById('grading-buttons').classList.add('hidden');
             
             if(sessionMode === 'browse') {
                 document.getElementById('browse-current-num').innerText = currentCardIndex + 1;
@@ -1689,7 +1707,7 @@
 
         const flipCard = () => {
             const inner = document.getElementById('flashcard-inner');
-            if(sessionMode === 'study') {
+            if(sessionMode === 'study' || sessionMode === 'study-all') {
                 inner.classList.add('flipped');
                 document.getElementById('grading-buttons').classList.remove('hidden');
             } else {
@@ -1710,6 +1728,7 @@
             const DAY_MS = 24 * 60 * 60 * 1000;
             const jitter = Math.random() * (0.1 * DAY_MS);
             card.nextReview = Date.now() + (card.interval * DAY_MS) + jitter;
+            if (sessionMode === 'study-all') studyAllRemaining.delete(card.id);
             
             saveCardToCloud(card); pickNextCard();
         };
@@ -1723,13 +1742,14 @@
 
         const goBackFromStudy = () => {
             sequenceQueue = [];
+            studyAllRemaining = new Set();
             if (activeStudyTarget.type === 'set' && selectedSet) openSetDetail(selectedSet);
             else switchView('folders'); 
         };
 
         const readCardAloud = (side) => {
             if (!window.speechSynthesis) return showAlert("Text-to-speech not supported.");
-            let card = sessionMode === 'study' ? deck[currentCardIndex] : browseCardsList[currentCardIndex];
+            let card = (sessionMode === 'study' || sessionMode === 'study-all') ? deck[currentCardIndex] : browseCardsList[currentCardIndex];
             if(card.type === 'occlusion') return showAlert("No text to read on diagram cards.");
             let text = side === 'front' ? card.front : card.back;
             let stripped = text.replace(/<[^>]*>?/gm, ''); 
